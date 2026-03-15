@@ -66,8 +66,15 @@ export function isFiring2T(crankAngleDeg: number, crankOffset: number, threshold
 export const I4_OFFSETS = [0, 180, 180, 0];
 export const I6_OFFSETS = [0, 120, 240, 360, 480, 600];
 export const I4_FIRING_OFFSETS_4T = [0, 540, 180, 360]; // order 1-3-4-2
+// Honda NSR500 V4 2T — simplified to inline representation
+// Screamer (pre-1990): 180° crank, no bank split → firing every 90°
+// Each piston independent, evenly spaced — no pairs
 export const SCREAMER_2T_OFFSETS = [0, 90, 180, 270];
-export const BIGBANG_2T_OFFSETS = [0, 70, 180, 250];
+// Big Bang (1992+): 0° crank with 180° bank split
+// Pairs within each bank move together (0° apart),
+// banks separated by 68° (from 180°−112° V-angle)
+// Firing pattern: 0°–0°–68°–68° → then 292° gap
+export const BIGBANG_2T_OFFSETS = [0, 0, 68, 68];
 
 export type BalanceRating = 'good' | 'partial' | 'bad';
 

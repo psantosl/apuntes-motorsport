@@ -4,11 +4,12 @@ import AnimationControls from '../AnimationControls';
 import { useAnimationLoop } from '../../hooks/useAnimationLoop';
 import { PISTON_COLORS, EXPLOSION_COLOR } from '../../utils/engine';
 
-/* ── Pulse patterns ── */
-// Screamer: evenly spaced pulses (4 cyl, 90° apart in 2T)
-const SCREAMER_PULSES = [0, 90, 180, 270]; // degrees within 360°
-// Big Bang: grouped pulses then gap
-const BIGBANG_PULSES = [0, 70, 180, 250];
+/* ── Pulse patterns (based on Honda NSR500 V4 2T) ── */
+// Screamer: evenly spaced pulses (180° crank, no bank split → 90-90-90-90)
+const SCREAMER_PULSES = [0, 90, 180, 270];
+// Big Bang: 0° crank + 180° bank split → pairs fire together, 68° between banks
+// Pattern: 0°, 0°, 68°, 68° → then 292° gap
+const BIGBANG_PULSES = [0, 0, 68, 68];
 
 /* ── SVG constants ── */
 const TIRE_VB_W = 600;

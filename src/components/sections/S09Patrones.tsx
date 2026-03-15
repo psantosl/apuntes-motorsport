@@ -35,30 +35,33 @@ const CONFIGS: Record<TabKey, Config> = {
     firingOffsets4T: I4_FIRING_OFFSETS_4T,
     cycleDeg: 720,
     description:
-      'Motor 4 tiempos clasico: cada piston llega al PMS dos veces por ciclo (720°). ' +
-      'Solo una es explosion (naranja), la otra es cruce de escape (gris). ' +
-      'Orden de encendido: 1-3-4-2, con 180° entre explosiones.',
+      'Motor 4 tiempos clásico: cada pistón llega al PMS dos veces por ciclo (720°). ' +
+      'Solo una es explosión (naranja), la otra es cruce de escape (gris). ' +
+      'Orden de encendido: 1-3-4-2, con 180° entre explosiones. ' +
+      'Los pistones van en parejas: 1-4 juntos y 2-3 juntos (offsets 0°/180°/180°/0°).',
   },
   screamer: {
-    label: 'I4 2T Screamer',
+    label: 'V4 2T Screamer',
     crankOffsets: SCREAMER_2T_OFFSETS,
     is4T: false,
     cycleDeg: 360,
     description:
-      'Configuracion screamer: los 4 cilindros estan separados exactamente 90°. ' +
-      'Cada 90° de ciguenal hay una explosion, perfectamente espaciadas. ' +
-      'Entrega de potencia muy uniforme, como un I4 de 4 tiempos.',
+      'Configuración screamer (Honda NSR500 pre-1990): cigüeñal a 180° sin desfase entre bancadas. ' +
+      'Los 4 pistones están separados exactamente 90° — ninguno va sincronizado con otro, ' +
+      'a diferencia del I4 4T donde van en parejas. Cada 90° de cigüeñal hay una explosión, ' +
+      'perfectamente espaciadas (90-90-90-90). Entrega de potencia muy uniforme.',
   },
   bigbang: {
-    label: 'I4 2T Big Bang',
+    label: 'V4 2T Big Bang',
     crankOffsets: BIGBANG_2T_OFFSETS,
     is4T: false,
     cycleDeg: 360,
     description:
-      'Configuracion big bang: las explosiones se agrupan en pares. ' +
-      'P1+P2 explotan casi juntos (70° de separacion), pausa de ~110°, luego P3+P4 ' +
-      'casi juntos (70°), pausa de ~110°. Mejor traccion en mojado gracias a la ' +
-      'entrega irregular de potencia.',
+      'Configuración big bang (Honda NSR500 desde 1992): cigüeñal a 0° con 180° de bank split. ' +
+      'Los pistones de cada bancada van sincronizados (P1+P2 juntos, P3+P4 juntos). ' +
+      'Las bancadas están separadas 68° (derivado del ángulo V de 112°). ' +
+      'Patrón de disparo: P1+P2 a 0°, P3+P4 a 68°, y después 292° de silencio. ' +
+      'El neumático recibe dos golpes seguidos y luego tiene tiempo de recuperarse.',
   },
 };
 
@@ -152,8 +155,11 @@ export default function S09Patrones() {
   return (
     <SectionWrapper id="s09-patrones" title="9 · Patrones de disparo">
       <p className="text-gray-400 max-w-3xl mb-6">
-        El orden y espaciado de las explosiones define el caracter del motor. Compara tres
-        configuraciones de 4 cilindros.
+        El orden y espaciado de las explosiones define el carácter del motor. Aquí comparamos
+        un I4 de 4 tiempos con dos configuraciones de la era de las 500cc 2T de MotoGP,
+        basadas en la <strong className="text-gray-200">Honda NSR500</strong> (V4 a 112°, 2T).
+        La animación simplifica el V4 a una representación en línea para mostrar el patrón
+        de disparo.
       </p>
 
       {/* ── Tab selector ── */}
@@ -384,16 +390,40 @@ export default function S09Patrones() {
         <p className="text-gray-400">{config.description}</p>
 
         {tab === 'bigbang' && (
-          <div className="mt-4 bg-gray-800/40 border border-orange-500/20 rounded-lg p-4">
+          <div className="mt-4 bg-gray-800/40 border border-orange-500/20 rounded-lg p-4 space-y-3">
             <h4 className="text-sm font-semibold text-orange-400 mb-2">
-              Por que el Big Bang mejora la traccion?
+              ¿Por qué el Big Bang mejora la tracción?
             </h4>
             <p className="text-gray-400 text-sm">
-              Al agrupar las explosiones en pares, el neumatico trasero tiene intervalos mas
-              largos sin par motor. Esto permite que el caucho se recupere entre pulsos de
-              potencia, reduciendo el deslizamiento en condiciones de baja adherencia. Es la
-              misma filosofia que llevo a Yamaha a cambiar el orden de encendido de la YZR-M1
-              de MotoGP.
+              Los 4 disparos se concentran en ~68° de cada vuelta, dejando <strong className="text-gray-200">292° de silencio</strong>.
+              Aunque el neumático recibe más carga instantánea, tiene tiempo de recuperar su forma elástica
+              antes del siguiente grupo de pulsos. Con el screamer, la carga es menor pero <em>constante</em>:
+              el neumático nunca descansa.
+            </p>
+            <p className="text-gray-400 text-sm">
+              Honda introdujo esta configuración en la NSR500 en <strong className="text-gray-200">1992</strong>.
+              Mick Doohan pidió volver al screamer en 1997 — prefería la entrega lineal para su estilo
+              basado en velocidad de paso por curva. Dato curioso: el screamer le daba menos freno motor,
+              lo que estabilizaba la moto en entrada de curva.
+            </p>
+          </div>
+        )}
+
+        {tab === 'screamer' && (
+          <div className="mt-4 bg-gray-800/40 border border-blue-500/20 rounded-lg p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-blue-400 mb-2">
+              NSR500: V4 a 112° con 2 tiempos
+            </h4>
+            <p className="text-gray-400 text-sm">
+              La Honda NSR500 era un V4 con ángulo entre bancadas de 112°. En configuración screamer,
+              el cigüeñal usaba <strong className="text-gray-200">180° entre crank pins</strong> sin desfase adicional
+              entre bancadas. Combinado con el ángulo V de 112°, esto producía explosiones cada 90° exactos.
+            </p>
+            <p className="text-gray-400 text-sm">
+              A diferencia del I4 4T (donde los pistones 1-4 y 2-3 van en parejas),
+              aquí <strong className="text-gray-200">cada pistón va completamente independiente</strong>.
+              Es el precio de repartir los disparos uniformemente en un motor de 2 tiempos:
+              360°/4 = 90° entre offsets.
             </p>
           </div>
         )}
