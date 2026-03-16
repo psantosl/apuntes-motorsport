@@ -73,8 +73,10 @@ export const SCREAMER_2T_OFFSETS = [0, 90, 180, 270];
 // Big Bang (1992+): 0° crank with 180° bank split
 // Pairs within each bank move together (0° apart),
 // banks separated by 68° (from 180°−112° V-angle)
-// Firing pattern: 0°–0°–68°–68° → then 292° gap
-export const BIGBANG_2T_OFFSETS = [0, 0, 68, 68];
+// Firing pattern: P1+P2 at 0°, P3+P4 at 68°, then 292° gap
+// Offset convention: TDC when (crankAngle + offset) ≡ 0° mod 360
+// So offset = 360° - firingDelay: P3+P4 fire at 68° → offset = 292°
+export const BIGBANG_2T_OFFSETS = [0, 0, 292, 292];
 
 export type BalanceRating = 'good' | 'partial' | 'bad';
 

@@ -101,61 +101,112 @@ function CrankSideView({ offsets, angle }: { offsets: number[]; angle: number })
 
 /* ── Front view constants ─────────────────────────────── */
 
-const FRONT_SIZE = 280;
-const CENTER = FRONT_SIZE / 2;
-const ORBIT_R = 80;
-const FRONT_PIN_R = 14;
+const FRONT_W = 360;
+const FRONT_H = 380;
+const CRANK_CY = 250;           // crankshaft center Y
+const CRANK_CX = FRONT_W / 2;
+const ORBIT_R = 50;
+const FRONT_PIN_R = 7;
+const BIELA_LEN = 140;          // connecting rod length (fixed, must be > ORBIT_R + max piston spread)
+const PISTON_W = 22;
+const PISTON_H = 14;
+const PISTON_GAP = 4;           // gap between pistons
 
 /* ── Front view component ─────────────────────────────── */
 
 function CrankFrontView({ offsets, angle }: { offsets: number[]; angle: number }) {
   return (
-    <svg width={FRONT_SIZE} height={FRONT_SIZE} viewBox={`0 0 ${FRONT_SIZE} ${FRONT_SIZE}`} className="bg-gray-900/50 rounded-lg border border-gray-700/50">
-      {/* Orbit circle */}
-      <circle cx={CENTER} cy={CENTER} r={ORBIT_R} fill="none" stroke="#374151" strokeWidth={1} strokeDasharray="4 4" />
+    <svg viewBox={`0 0 ${FRONT_W} ${FRONT_H}`} className="w-full max-w-xs bg-gray-900/50 rounded-lg border border-gray-700/50">
+      {/* Cylinder walls (vertical guide lines for pistons) */}
+      {(() => {
+        // TDC: crank at 0° → pinY = CRANK_CY - ORBIT_R, dx = 0
+        const tdcBulonY = CRANK_CY - ORBIT_R - BIELA_LEN;
+        // BDC: crank at 180° → pinY = CRANK_CY + ORBIT_R, dx = 0
+        const bdcBulonY = CRANK_CY + ORBIT_R - BIELA_LEN;
+        const tdcY = tdcBulonY;
+        const bdcY = bdcBulonY;
+        return offsets.map((_, i) => {
+          const n = offsets.length;
+          const totalW = n * (PISTON_W + PISTON_GAP) - PISTON_GAP;
+          const pistonCX = CRANK_CX - totalW / 2 + i * (PISTON_W + PISTON_GAP) + PISTON_W / 2;
+          return (
+            <g key={`wall-${i}`}>
+              <line x1={pistonCX - PISTON_W / 2 - 2} y1={tdcY - PISTON_H}
+                x2={pistonCX - PISTON_W / 2 - 2} y2={bdcY + PISTON_H}
+                stroke="#2A2A35" strokeWidth={1} />
+              <line x1={pistonCX + PISTON_W / 2 + 2} y1={tdcY - PISTON_H}
+                x2={pistonCX + PISTON_W / 2 + 2} y2={bdcY + PISTON_H}
+                stroke="#2A2A35" strokeWidth={1} />
+            </g>
+          );
+        });
+      })()}
+
+      {/* Orbit circle (dashed) */}
+      <circle cx={CRANK_CX} cy={CRANK_CY} r={ORBIT_R} fill="none" stroke="#374151" strokeWidth={1} strokeDasharray="4 4" />
 
       {/* Center dot (main journal) */}
-      <circle cx={CENTER} cy={CENTER} r={8} fill="#4B5563" stroke="#6B7280" strokeWidth={1.5} />
+      <circle cx={CRANK_CX} cy={CRANK_CY} r={6} fill="#4B5563" stroke="#6B7280" strokeWidth={1.5} />
 
-      {/* Pin trails (thin orbit arcs) */}
-      {offsets.map((offset, i) => {
-        const color = PISTON_COLORS[(i + 1) as keyof typeof PISTON_COLORS] ?? '#9CA3AF';
-        return (
-          <circle
-            key={`trail-${i}`}
-            cx={CENTER} cy={CENTER} r={ORBIT_R}
-            fill="none" stroke={color} strokeWidth={1} opacity={0.2}
-          />
-        );
-      })}
-
-      {/* Crankpins */}
+      {/* Crankpins, bielas, and pistons */}
       {offsets.map((offset, i) => {
         const rad = ((angle + offset) * Math.PI) / 180;
-        // 0° = top (12 o'clock), clockwise
-        const px = CENTER + ORBIT_R * Math.sin(rad);
-        const py = CENTER - ORBIT_R * Math.cos(rad);
+        // Crankpin position (0° = top, clockwise)
+        const pinX = CRANK_CX + ORBIT_R * Math.sin(rad);
+        const pinY = CRANK_CY - ORBIT_R * Math.cos(rad);
         const color = PISTON_COLORS[(i + 1) as keyof typeof PISTON_COLORS] ?? '#9CA3AF';
+
+        // Piston X: spread horizontally for visualization
+        const n = offsets.length;
+        const totalW = n * (PISTON_W + PISTON_GAP) - PISTON_GAP;
+        const pistonCX = CRANK_CX - totalW / 2 + i * (PISTON_W + PISTON_GAP) + PISTON_W / 2;
+
+        // Piston Y: computed on the REAL centerline (X = CRANK_CX),
+        // like in a real inline engine where all pistons share one axis.
+        // This ensures paired pistons (same offset) are always at the same height.
+        const dxCenter = CRANK_CX - pinX;  // = -ORBIT_R * sin(rad)
+        const bielaVert = Math.sqrt(BIELA_LEN * BIELA_LEN - dxCenter * dxCenter);
+        const pistonY = pinY - bielaVert;
 
         return (
           <g key={`fpin-${i}`}>
-            {/* Arm line to center */}
-            <line x1={CENTER} y1={CENTER} x2={px} y2={py} stroke={color} strokeWidth={3} opacity={0.5} />
-            {/* Pin */}
-            <circle cx={px} cy={py} r={FRONT_PIN_R} fill={color} stroke="#fff" strokeWidth={1.5} opacity={0.9} />
-            {/* Label */}
-            <text x={px} y={py + 1} textAnchor="middle" dominantBaseline="middle" fontSize={11} fontWeight={700} fill="#fff">
+            {/* Crank arm (center to pin) */}
+            <line x1={CRANK_CX} y1={CRANK_CY} x2={pinX} y2={pinY}
+              stroke={color} strokeWidth={3} opacity={0.4} />
+
+            {/* Biela (connecting rod: pin to piston) */}
+            <line x1={pinX} y1={pinY} x2={pistonCX} y2={pistonY}
+              stroke="#9CA3AF" strokeWidth={2.5} strokeLinecap="round" />
+
+            {/* Wrist pin (bulón) */}
+            <circle cx={pistonCX} cy={pistonY} r={3} fill="#D1D5DB" />
+
+            {/* Piston */}
+            <rect
+              x={pistonCX - PISTON_W / 2} y={pistonY - PISTON_H / 2}
+              width={PISTON_W} height={PISTON_H}
+              rx={3}
+              fill={color} opacity={0.85}
+              stroke="#fff" strokeWidth={1} strokeOpacity={0.3}
+            />
+            {/* Piston label */}
+            <text x={pistonCX} y={pistonY + 1} textAnchor="middle" dominantBaseline="middle"
+              fontSize={9} fontWeight={700} fill="#fff">
               {i + 1}
             </text>
+
+            {/* Crankpin dot */}
+            <circle cx={pinX} cy={pinY} r={FRONT_PIN_R} fill={color}
+              stroke="#fff" strokeWidth={1} opacity={0.9} />
           </g>
         );
       })}
 
-      {/* 0° mark */}
-      <text x={CENTER} y={18} textAnchor="middle" fontSize={10} fill="#6B7280">0°</text>
-      <text x={FRONT_SIZE - 12} y={CENTER + 4} textAnchor="middle" fontSize={10} fill="#6B7280">90°</text>
-      <text x={CENTER} y={FRONT_SIZE - 8} textAnchor="middle" fontSize={10} fill="#6B7280">180°</text>
-      <text x={12} y={CENTER + 4} textAnchor="middle" fontSize={10} fill="#6B7280">270°</text>
+      {/* Degree labels */}
+      <text x={CRANK_CX} y={CRANK_CY - ORBIT_R - 16} textAnchor="middle" fontSize={9} fill="#6B7280">0°</text>
+      <text x={CRANK_CX + ORBIT_R + 14} y={CRANK_CY + 4} textAnchor="middle" fontSize={9} fill="#6B7280">90°</text>
+      <text x={CRANK_CX} y={CRANK_CY + ORBIT_R + 16} textAnchor="middle" fontSize={9} fill="#6B7280">180°</text>
+      <text x={CRANK_CX - ORBIT_R - 14} y={CRANK_CY + 4} textAnchor="middle" fontSize={9} fill="#6B7280">270°</text>
     </svg>
   );
 }

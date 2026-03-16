@@ -2,64 +2,75 @@ import { useState } from 'react';
 import SectionWrapper from '../SectionWrapper';
 import AnimationControls from '../AnimationControls';
 import { useAnimationLoop } from '../../hooks/useAnimationLoop';
-import { pistonPosition, PISTON_COLORS } from '../../utils/engine';
+import { PISTON_COLORS } from '../../utils/engine';
 
-/* ── geometry constants (SVG user units) ── */
-const VB_W = 400;
-const VB_H = 500;
+/* ── Physical proportions (SVG user units) ──
+   Everything is derived from CRANK_R and BIELA_LEN.
+   Real ratio biela/manivela ≈ 3–4. We use 3.5 for visual clarity.
+*/
+const CRANK_R = 44;
+const BIELA_LEN = CRANK_R * 3.5;     // 154
+const PISTON_H = 34;
+const CYL_W = 130;
 
-const CYL_X = 130;            // cylinder left wall x
-const CYL_W = 140;            // cylinder bore width
-const CYL_TOP = 60;           // top of cylinder (culata bottom)
-const CYL_BOT = 310;          // bottom of cylinder walls
-const STROKE = CYL_BOT - CYL_TOP - 40; // max vertical travel
+// Layout: build the SVG from the crank center outward
+const CRANK_CY = 420;
+const CRANK_CX = 200;
+const CYL_X = CRANK_CX - CYL_W / 2;
 
-const PISTON_H = 36;
+// TDC / BDC bulón positions (derived from geometry)
+const TDC_BULON_Y = CRANK_CY - CRANK_R - BIELA_LEN;  // crank at 0°
+const BDC_BULON_Y = CRANK_CY + CRANK_R - BIELA_LEN;  // crank at 180°
+
+// Cylinder walls: just above PMS piston top, just below PMI piston bottom
+const CYL_TOP = TDC_BULON_Y - PISTON_H / 2 - 8;      // 8px clearance for combustion chamber
+const CYL_BOT = BDC_BULON_Y + PISTON_H / 2 + 12;
+
+const VB_W = 420;
+const VB_H = CRANK_CY + CRANK_R + 60;
+
 const PISTON_COLOR = PISTON_COLORS[1];
-
-const CRANK_CX = CYL_X + CYL_W / 2; // crankshaft center
-const CRANK_CY = 400;
-const CRANK_R = 40;            // crank radius (muñequilla offset)
 
 /* ── label type ── */
 interface Label {
   text: string;
-  tx: number; ty: number;  // text position
-  px: number; py: number;  // point-to position
+  tx: number; ty: number;
+  px: number; py: number;
 }
 
 export default function S01Cilindro() {
   const [speed, setSpeed] = useState(1);
   const { angle, playing, toggle } = useAnimationLoop(speed);
 
-  const pos = pistonPosition(angle % 360); // 0 = TDC, 1 = BDC
-  const pistonY = CYL_TOP + 20 + pos * STROKE;
-
-  // crankshaft pin position
+  // Crankshaft pin position (circular motion)
   const crankRad = ((angle % 360) * Math.PI) / 180;
   const pinX = CRANK_CX + CRANK_R * Math.sin(crankRad);
   const pinY = CRANK_CY - CRANK_R * Math.cos(crankRad);
 
-  // biela bottom = pin, top = piston wrist pin (bulón)
-  const bulonY = pistonY + PISTON_H / 2;
+  // Bulón: constrained to cylinder centerline (X = CRANK_CX)
+  // Biela has fixed length → bulonY = pinY - sqrt(BIELA_LEN² - dx²)
+  const dx = pinX - CRANK_CX;
+  const bulonY = pinY - Math.sqrt(BIELA_LEN * BIELA_LEN - dx * dx);
   const bulonX = CRANK_CX;
 
-  // TDC / BDC y positions
-  const tdcY = CYL_TOP + 20;
-  const bdcY = CYL_TOP + 20 + STROKE;
+  // Piston top edge
+  const pistonY = bulonY - PISTON_H / 2;
 
-  // Labels with pointer positions that update with animation
+  // TDC / BDC piston top-edge positions (for indicators)
+  const tdcPistonY = TDC_BULON_Y - PISTON_H / 2;
+  const bdcPistonY = BDC_BULON_Y - PISTON_H / 2;
+
   const labels: Label[] = [
-    { text: 'Culata', tx: 20, ty: 40, px: CYL_X + CYL_W / 2, py: CYL_TOP - 8 },
-    { text: 'V. admisión', tx: 10, ty: 75, px: CYL_X + 30, py: CYL_TOP + 4 },
-    { text: 'V. escape', tx: 280, ty: 75, px: CYL_X + CYL_W - 30, py: CYL_TOP + 4 },
-    { text: 'Pistón', tx: 310, ty: pistonY + 6, px: CYL_X + CYL_W + 4, py: pistonY + PISTON_H / 2 },
-    { text: 'Segmentos', tx: 310, ty: pistonY - 16, px: CYL_X + CYL_W + 4, py: pistonY - 4 },
-    { text: 'Bulón', tx: 310, ty: bulonY + 18, px: bulonX + 20, py: bulonY },
-    { text: 'Biela', tx: 16, ty: (bulonY + pinY) / 2, px: (bulonX + pinX) / 2 - 8, py: (bulonY + pinY) / 2 },
-    { text: 'Muñequilla', tx: 10, ty: pinY + 4, px: pinX - 10, py: pinY },
-    { text: 'Muñón principal', tx: 10, ty: CRANK_CY + 36, px: CRANK_CX - 14, py: CRANK_CY + 10 },
-    { text: 'Brazo de manivela', tx: 10, ty: CRANK_CY + 52, px: (CRANK_CX + pinX) / 2, py: (CRANK_CY + pinY) / 2 },
+    { text: 'Culata', tx: 24, ty: CYL_TOP - 18, px: CYL_X + CYL_W / 2, py: CYL_TOP - 8 },
+    { text: 'V. admisión', tx: 14, ty: CYL_TOP + 6, px: CYL_X + 28, py: CYL_TOP + 4 },
+    { text: 'V. escape', tx: 300, ty: CYL_TOP + 6, px: CYL_X + CYL_W - 28, py: CYL_TOP + 4 },
+    { text: 'Segmentos', tx: 320, ty: pistonY - 4, px: CYL_X + CYL_W + 4, py: pistonY + 4 },
+    { text: 'Pistón', tx: 320, ty: pistonY + 14, px: CYL_X + CYL_W + 4, py: pistonY + PISTON_H / 2 },
+    { text: 'Bulón', tx: 320, ty: bulonY + 6, px: bulonX + 22, py: bulonY },
+    { text: 'Biela', tx: 20, ty: (bulonY + pinY) / 2, px: (bulonX + pinX) / 2 - 6, py: (bulonY + pinY) / 2 },
+    { text: 'Muñequilla', tx: 14, ty: pinY + 4, px: pinX - 10, py: pinY },
+    { text: 'Muñón principal', tx: 14, ty: CRANK_CY + 32, px: CRANK_CX - 14, py: CRANK_CY + 10 },
+    { text: 'Brazo de manivela', tx: 14, ty: CRANK_CY + 48, px: (CRANK_CX + pinX) / 2, py: (CRANK_CY + pinY) / 2 },
   ];
 
   return (
@@ -74,20 +85,20 @@ export default function S01Cilindro() {
         <svg
           viewBox={`0 0 ${VB_W} ${VB_H}`}
           className="w-full max-w-md"
-          style={{ minHeight: 420 }}
+          style={{ minHeight: 400 }}
         >
           {/* ── Culata (head) ── */}
           <rect
-            x={CYL_X - 10} y={CYL_TOP - 24}
-            width={CYL_W + 20} height={24}
+            x={CYL_X - 10} y={CYL_TOP - 22}
+            width={CYL_W + 20} height={22}
             rx={4}
             fill="#4B5563" stroke="#6B7280" strokeWidth={1.5}
           />
 
           {/* valves */}
-          <line x1={CYL_X + 30} y1={CYL_TOP - 24} x2={CYL_X + 30} y2={CYL_TOP + 6}
+          <line x1={CYL_X + 28} y1={CYL_TOP - 22} x2={CYL_X + 28} y2={CYL_TOP + 4}
             stroke="#60A5FA" strokeWidth={3} strokeLinecap="round" />
-          <line x1={CYL_X + CYL_W - 30} y1={CYL_TOP - 24} x2={CYL_X + CYL_W - 30} y2={CYL_TOP + 6}
+          <line x1={CYL_X + CYL_W - 28} y1={CYL_TOP - 22} x2={CYL_X + CYL_W - 28} y2={CYL_TOP + 4}
             stroke="#F87171" strokeWidth={3} strokeLinecap="round" />
 
           {/* ── Cylinder walls ── */}
@@ -96,22 +107,22 @@ export default function S01Cilindro() {
           <line x1={CYL_X + CYL_W} y1={CYL_TOP} x2={CYL_X + CYL_W} y2={CYL_BOT}
             stroke="#9CA3AF" strokeWidth={3} />
 
-          {/* ── TDC / BDC indicators ── */}
-          <line x1={CYL_X - 18} y1={tdcY + PISTON_H / 2} x2={CYL_X - 4} y2={tdcY + PISTON_H / 2}
+          {/* ── TDC / BDC indicators (at piston crown = top edge) ── */}
+          <line x1={CYL_X - 16} y1={tdcPistonY} x2={CYL_X - 2} y2={tdcPistonY}
             stroke="#34D399" strokeWidth={1.5} strokeDasharray="3 2" />
-          <text x={CYL_X - 22} y={tdcY + PISTON_H / 2 + 4}
+          <text x={CYL_X - 20} y={tdcPistonY + 4}
             textAnchor="end" fill="#34D399" fontSize={10} fontWeight={700}>PMS</text>
 
-          <line x1={CYL_X - 18} y1={bdcY + PISTON_H / 2} x2={CYL_X - 4} y2={bdcY + PISTON_H / 2}
+          <line x1={CYL_X - 16} y1={bdcPistonY} x2={CYL_X - 2} y2={bdcPistonY}
             stroke="#F59E0B" strokeWidth={1.5} strokeDasharray="3 2" />
-          <text x={CYL_X - 22} y={bdcY + PISTON_H / 2 + 4}
+          <text x={CYL_X - 20} y={bdcPistonY + 4}
             textAnchor="end" fill="#F59E0B" fontSize={10} fontWeight={700}>PMI</text>
 
           {/* ── Piston segments (rings) ── */}
-          {[0, 8, 14].map((dy, i) => (
+          {[0, 7, 13].map((dy, i) => (
             <rect
               key={i}
-              x={CYL_X + 4} y={pistonY - 6 + dy}
+              x={CYL_X + 4} y={pistonY - 5 + dy}
               width={CYL_W - 8} height={3}
               rx={1}
               fill="#A1A1AA"
