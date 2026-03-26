@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import SectionWrapper from '../SectionWrapper';
 import { ENGINE_CONFIGS, PISTON_COLORS, type BalanceRating } from '../../utils/engine';
 
@@ -67,7 +67,6 @@ function VSchematic({
   const rightDy = -Math.cos(halfAngle);
 
   const cylR = 11;
-  const spacing = 28;
 
   return (
     <g>

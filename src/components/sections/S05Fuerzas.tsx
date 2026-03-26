@@ -83,9 +83,6 @@ export default function S05Fuerzas() {
   const curSecondary = secondaryForce(angle720, 0, lambda);
   const curCombined = curPrimary + curSecondary;
 
-  // Zero line Y
-  const zeroY = PAD_T + (yMax / (yMax - yMin)) * PLOT_H;
-
   return (
     <SectionWrapper id="fuerzas" title="Fuerzas primarias y secundarias">
       <p className="text-gray-300 max-w-3xl mb-4">

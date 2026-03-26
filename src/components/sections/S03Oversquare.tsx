@@ -11,11 +11,20 @@ interface EngineExample {
 }
 
 const EXAMPLES: EngineExample[] = [
+  // Undersquare
   { name: 'BMW 730Ld B57 diésel', bore: 84, stroke: 90, ratio: 0.93, type: 'undersquare' },
   { name: 'BMW S58 (M2/M3/M4)', bore: 84, stroke: 90, ratio: 0.93, type: 'undersquare', note: 'biturbo' },
   { name: 'Ford Ranger Raptor EcoBlue 2.0', bore: 84, stroke: 90, ratio: 0.93, type: 'undersquare' },
+  { name: 'Toyota GR Yaris (G16E-GTS)', bore: 87.5, stroke: 89.7, ratio: 0.98, type: 'undersquare', note: 'turbo 3 cil., casi square' },
+  { name: 'Fiat 500 1.0 Firefly', bore: 70, stroke: 65.5, ratio: 1.07, type: 'oversquare', note: 'mild-hybrid' },
+  // Oversquare
   { name: 'Porsche 911 GT3 991.2', bore: 102, stroke: 81.5, ratio: 1.25, type: 'oversquare' },
+  // Supersquare (motos sport)
+  { name: 'Kawasaki ZX-10R', bore: 76, stroke: 55, ratio: 1.38, type: 'supersquare' },
   { name: 'Kawasaki ZXR750 1993', bore: 71, stroke: 47.3, ratio: 1.50, type: 'supersquare' },
+  { name: 'Honda VFR750R RC30', bore: 70, stroke: 48.6, ratio: 1.44, type: 'supersquare', note: 'V4 homologación' },
+  { name: 'Honda CBR1000RR-R Fireblade', bore: 81, stroke: 48.5, ratio: 1.67, type: 'supersquare', note: 'derivado de RC213V' },
+  { name: 'Ducati Panigale V4', bore: 81, stroke: 53.5, ratio: 1.51, type: 'supersquare', note: 'Desmosedici Stradale' },
   { name: 'Aprilia RSV4 RF 2016', bore: 78, stroke: 52.3, ratio: 1.49, type: 'supersquare' },
 ];
 

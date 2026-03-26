@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { pistonPosition, EXPLOSION_COLOR } from '../../utils/engine';
 import { useAnimationLoop } from '../../hooks/useAnimationLoop';
 import SectionWrapper from '../SectionWrapper';
@@ -140,7 +140,7 @@ export default function S04Ciclos() {
 
   // 4T: firing TDC near 360° (compresión->explosión), non-firing near 0°/720° (escape->admisión)
   const nearFiringTDC4T = angle720 > 340 && angle720 < 380;
-  const nearNonFiringTDC4T = angle720 < 20 || angle720 > 700;
+  // nearNonFiringTDC4T removed (unused)
 
   // 2T: every TDC is firing
   const nearTDC2T = angle360 < 20 || angle360 > 340;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import SectionWrapper from '../SectionWrapper';
-import { PISTON_COLORS, EXPLOSION_COLOR } from '../../utils/engine';
+import { PISTON_COLORS } from '../../utils/engine';
 
 /* ── Types ── */
 type CrankConfig = 'transversal' | 'longitudinal' | 'counter';
@@ -62,8 +62,6 @@ function MotorcycleSilhouette({
   config: CrankConfig;
   rpm: number;
 }) {
-  const leanRad = (leanDeg * Math.PI) / 180;
-
   // Gyroscopic torque magnitude (normalized 0..1)
   const torqueMag = (rpm / 16000) * (Math.abs(leanDeg) / 40);
   const clampedTorque = Math.min(torqueMag, 1);
@@ -235,7 +233,6 @@ export default function S12Giroscopico() {
             style={config === c.key ? {
               backgroundColor: `${c.color}20`,
               color: c.color,
-              ringColor: c.color,
               boxShadow: `inset 0 0 0 1px ${c.color}60`,
             } : undefined}
           >

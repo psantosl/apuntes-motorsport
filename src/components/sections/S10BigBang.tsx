@@ -17,15 +17,6 @@ const TIRE_VB_H = 280;
 const CHART_VB_W = 600;
 const CHART_VB_H = 200;
 
-/* ── Helper: is angle near any pulse? ── */
-function isPulseActive(angle: number, pulses: number[], threshold = 20): boolean {
-  const a = ((angle % 360) + 360) % 360;
-  return pulses.some(p => {
-    const diff = Math.abs(a - p);
-    return diff < threshold || diff > 360 - threshold;
-  });
-}
-
 /* ── Helper: pulse intensity (0..1) ── */
 function pulseIntensity(angle: number, pulses: number[], width = 20): number {
   const a = ((angle % 360) + 360) % 360;
