@@ -25,7 +25,8 @@ const EXAMPLES: EngineExample[] = [
   { name: 'Honda VFR750R RC30', bore: 70, stroke: 48.6, ratio: 1.44, type: 'supersquare', note: 'V4 homologación' },
   { name: 'Honda CBR1000RR-R Fireblade', bore: 81, stroke: 48.5, ratio: 1.67, type: 'supersquare', note: 'derivado de RC213V' },
   { name: 'Ducati Panigale V4', bore: 81, stroke: 53.5, ratio: 1.51, type: 'supersquare', note: 'Desmosedici Stradale' },
-  { name: 'Aprilia RSV4 RF 2016', bore: 78, stroke: 52.3, ratio: 1.49, type: 'supersquare' },
+  { name: 'Aprilia RSV4 999 (2009-19)', bore: 78, stroke: 52.3, ratio: 1.49, type: 'supersquare', note: 'V4 65°' },
+  { name: 'Aprilia RSV4 1100 (2019+)', bore: 81, stroke: 53.3, ratio: 1.52, type: 'supersquare', note: 'V4 65°' },
 ];
 
 const TYPE_COLORS: Record<string, string> = {
