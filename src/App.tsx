@@ -22,10 +22,36 @@ function LoadingFallback() {
   );
 }
 
+const VISUALIZER_HASH = '#visualizador';
+
 export default function App() {
   const [activeSection, setActiveSection] = useState(sections[0].id);
+  const [hash, setHash] = useState(() =>
+    typeof window !== 'undefined' ? window.location.hash : ''
+  );
+  const showVisualizer = hash === VISUALIZER_HASH;
 
   useEffect(() => {
+    function onHashChange() {
+      setHash(window.location.hash);
+    }
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  // When switching back from visualizer to sections, scroll to the requested section
+  useEffect(() => {
+    if (showVisualizer || !hash || hash === '#') return;
+    const id = hash.slice(1);
+    if (!sections.some(s => s.id === id)) return;
+    requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ block: 'start' });
+    });
+  }, [showVisualizer, hash]);
+
+  useEffect(() => {
+    if (showVisualizer) return;
+
     // Track which sections are currently intersecting
     const visibleSet = new Set<string>();
 
@@ -74,26 +100,35 @@ export default function App() {
       observer.disconnect();
       mutation.disconnect();
     };
-  }, []);
+  }, [showVisualizer]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
-      <Sidebar activeSection={activeSection} />
+      <Sidebar activeSection={activeSection} showVisualizer={showVisualizer} />
       <main className="lg:ml-64">
-        <Suspense fallback={<LoadingFallback />}>
-          <S01Cilindro />
-          <S02BoreStroke />
-          <S03Oversquare />
-          <S04Ciclos />
-          <S05Fuerzas />
-          <S06Ciguenal />
-          <S07BalanceI4 />
-          <S08BalanceI6 />
-          <S09Patrones />
-          <S10BigBang />
-          <S11Configuraciones />
-          <S12Giroscopico />
-        </Suspense>
+        {showVisualizer ? (
+          <iframe
+            src={`${import.meta.env.BASE_URL}visualizador-motor.html`}
+            className="block w-full border-0"
+            style={{ height: '100vh' }}
+            title="Visualizador 3D de motor"
+          />
+        ) : (
+          <Suspense fallback={<LoadingFallback />}>
+            <S01Cilindro />
+            <S02BoreStroke />
+            <S03Oversquare />
+            <S04Ciclos />
+            <S05Fuerzas />
+            <S06Ciguenal />
+            <S07BalanceI4 />
+            <S08BalanceI6 />
+            <S09Patrones />
+            <S10BigBang />
+            <S11Configuraciones />
+            <S12Giroscopico />
+          </Suspense>
+        )}
       </main>
     </div>
   );
