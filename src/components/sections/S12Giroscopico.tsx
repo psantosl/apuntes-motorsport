@@ -49,8 +49,8 @@ const CONFIGS: ConfigInfo[] = [
 ];
 
 /* ── SVG constants ── */
-const VB_W = 500;
-const VB_H = 420;
+const VB_W = 560;
+const VB_H = 440;
 
 /* ── Motorcycle rear view ── */
 function MotorcycleRearView({
@@ -61,157 +61,190 @@ function MotorcycleRearView({
   const cfgInfo = CONFIGS.find(c => c.key === config)!;
   const torqueMag = Math.min((rpm / 16000) * (Math.abs(leanDeg) / 40), 1);
 
-  // Ground contact point stays fixed, bike rotates around bottom
-  const groundY = cy + 95;
+  // Ground contact at the bottom; bike pivots around it when leaned
+  const groundY = cy + 130;
+
+  // Anatomy y-coordinates (upright). Smaller y = higher on screen.
+  const tireBottom = groundY;
+  const tireTop = groundY - 64;
+  const tireHalfW = 13;
+  const wheelHubY = groundY - 32;
+
+  const engineCY = groundY - 100;
+  const engineW = 76;
+  const engineH = 56;
+  const engineTop = engineCY - engineH / 2;
+  const engineBot = engineCY + engineH / 2;
+
+  const tailTopY = groundY - 165;
+  const tailHalfW = 19;
+
+  const torsoBotY = tailTopY;
+  const torsoTopY = groundY - 215;
+  const torsoHalfW = 30;
+
+  const helmetCY = groundY - 252;
+  const helmetRX = 22;
+  const helmetRY = 26;
 
   return (
     <g>
       {/* Ground line */}
-      <line x1={cx - 140} y1={groundY} x2={cx + 140} y2={groundY}
+      <line x1={cx - 170} y1={groundY} x2={cx + 170} y2={groundY}
         stroke="#333" strokeWidth={1.5} strokeDasharray="8 6" />
-      <text x={cx + 130} y={groundY + 16} fill="#444" fontSize={9} textAnchor="end">suelo</text>
+      <text x={cx + 160} y={groundY + 16} fill="#444" fontSize={9} textAnchor="end">suelo</text>
 
-      {/* Leaned motorcycle group — pivots around ground contact */}
+      {/* Leaned bike + rider — pivots around ground contact */}
       <g transform={`rotate(${-leanDeg}, ${cx}, ${groundY})`}>
 
-        {/* ── Rear tire ── */}
-        <ellipse cx={cx} cy={groundY - 42} rx={38} ry={50}
-          fill="#1a1a1a" stroke="#555" strokeWidth={2} />
-        {/* Tire tread lines */}
-        {[-30, -15, 0, 15, 30].map(dy => (
-          <line key={dy} x1={cx - 28} y1={groundY - 42 + dy} x2={cx + 28} y2={groundY - 42 + dy}
-            stroke="#333" strokeWidth={1} />
+        {/* ── Rear tire (narrow profile from behind) ── */}
+        <rect x={cx - tireHalfW} y={tireTop}
+          width={tireHalfW * 2} height={tireBottom - tireTop}
+          rx={5} fill="#15151a" stroke="#4a4a55" strokeWidth={1.4} />
+        {/* Tread hint */}
+        {[0.25, 0.5, 0.75].map((t, i) => (
+          <line key={i}
+            x1={cx - tireHalfW + 3} y1={tireBottom - (tireBottom - tireTop) * t}
+            x2={cx + tireHalfW - 3} y2={tireBottom - (tireBottom - tireTop) * t}
+            stroke="#26262c" strokeWidth={0.8} />
         ))}
-        {/* Rim */}
-        <ellipse cx={cx} cy={groundY - 42} rx={22} ry={30}
-          fill="none" stroke="#666" strokeWidth={1.5} />
-        {/* Hub */}
-        <circle cx={cx} cy={groundY - 42} r={6} fill="#555" stroke="#777" strokeWidth={1} />
-        {/* Sprocket (rear) */}
-        <circle cx={cx} cy={groundY - 42} r={12} fill="none" stroke="#888" strokeWidth={1} strokeDasharray="3 3" />
+        {/* Hub centre dot */}
+        <circle cx={cx} cy={wheelHubY} r={2.5} fill="#444" />
 
-        {/* ── Swingarm ── */}
-        <line x1={cx} y1={groundY - 42} x2={cx + 5} y2={groundY - 105}
-          stroke="#777" strokeWidth={4} strokeLinecap="round" />
-
-        {/* ── Rear shock ── */}
-        <line x1={cx - 8} y1={groundY - 75} x2={cx - 5} y2={groundY - 110}
-          stroke="#999" strokeWidth={2} strokeLinecap="round" />
+        {/* ── Swingarm (faint, both sides of the wheel) ── */}
+        <line x1={cx - 18} y1={engineBot - 4} x2={cx - tireHalfW - 1} y2={tireBottom - 14}
+          stroke="#3a3a44" strokeWidth={2.5} strokeLinecap="round" opacity={0.75} />
+        <line x1={cx + 18} y1={engineBot - 4} x2={cx + tireHalfW + 1} y2={tireBottom - 14}
+          stroke="#3a3a44" strokeWidth={2.5} strokeLinecap="round" opacity={0.75} />
 
         {/* ── Engine block ── */}
-        <rect x={cx - 28} y={groundY - 130} width={56} height={40}
-          rx={5} fill="#2a2a35" stroke="#555" strokeWidth={1.5} />
-        {/* Engine fins */}
-        {[-8, 0, 8].map(dy => (
-          <line key={dy} x1={cx - 26} y1={groundY - 115 + dy} x2={cx + 26} y2={groundY - 115 + dy}
-            stroke="#444" strokeWidth={1} />
+        <rect x={cx - engineW / 2} y={engineTop}
+          width={engineW} height={engineH}
+          rx={7} fill="#26262e" stroke="#555" strokeWidth={1.5} />
+        {/* Cooling fins (verticals) */}
+        {[-28, -22, 22, 28].map(dx => (
+          <line key={dx}
+            x1={cx + dx} y1={engineTop + 8}
+            x2={cx + dx} y2={engineBot - 8}
+            stroke="#3a3a44" strokeWidth={1} />
         ))}
 
-        {/* ── Crankshaft indicator inside engine ── */}
-        {config === 'transversal' && (
-          <g>
-            {/* Horizontal line = perpendicular to travel */}
-            <line x1={cx - 18} y1={groundY - 110} x2={cx + 18} y2={groundY - 110}
-              stroke={cfgInfo.color} strokeWidth={3} strokeLinecap="round" />
-            <circle cx={cx - 18} cy={groundY - 110} r={4} fill={cfgInfo.color} />
-            <circle cx={cx + 18} cy={groundY - 110} r={4} fill={cfgInfo.color} />
-            {/* Rotation arrow */}
-            <path d={`M${cx + 12},${groundY - 120} A 14 14 0 1 1 ${cx - 12},${groundY - 120}`}
-              fill="none" stroke={cfgInfo.color} strokeWidth={1.5} opacity={0.6} />
-            <polygon points={`${cx - 12},${groundY - 123} ${cx - 16},${groundY - 118} ${cx - 10},${groundY - 118}`}
-              fill={cfgInfo.color} opacity={0.6} />
-          </g>
-        )}
-        {config === 'longitudinal' && (
-          <g>
-            {/* Dot = looking at crankshaft end-on (parallel to travel) */}
-            <circle cx={cx} cy={groundY - 110} r={10} fill="none"
-              stroke={cfgInfo.color} strokeWidth={2.5} />
-            <circle cx={cx} cy={groundY - 110} r={3} fill={cfgInfo.color} />
-            {/* Rotation arrow */}
-            <path d={`M${cx + 8},${groundY - 118} A 12 12 0 1 1 ${cx - 8},${groundY - 118}`}
-              fill="none" stroke={cfgInfo.color} strokeWidth={1.5} opacity={0.6} />
-          </g>
-        )}
-        {config === 'counter' && (
-          <g>
-            {/* Horizontal line like transversal */}
-            <line x1={cx - 18} y1={groundY - 110} x2={cx + 18} y2={groundY - 110}
-              stroke={cfgInfo.color} strokeWidth={3} strokeLinecap="round" />
-            <circle cx={cx - 18} cy={groundY - 110} r={4} fill={cfgInfo.color} />
-            <circle cx={cx + 18} cy={groundY - 110} r={4} fill={cfgInfo.color} />
-            {/* REVERSE rotation arrow */}
-            <path d={`M${cx - 12},${groundY - 120} A 14 14 0 1 0 ${cx + 12},${groundY - 120}`}
-              fill="none" stroke="#22C55E" strokeWidth={1.5} opacity={0.8} />
-            <polygon points={`${cx + 12},${groundY - 123} ${cx + 16},${groundY - 118} ${cx + 10},${groundY - 118}`}
-              fill="#22C55E" opacity={0.8} />
-            <text x={cx} y={groundY - 126} textAnchor="middle" fill="#22C55E" fontSize={7} opacity={0.7}>
-              CONTRA
-            </text>
-          </g>
-        )}
+        {/* ── Crankshaft indicator (config-dependent), drawn over the engine ── */}
+        {(() => {
+          const ax = engineCY;
+          if (config === 'transversal') {
+            return (
+              <g>
+                <line x1={cx - 28} y1={ax} x2={cx + 28} y2={ax}
+                  stroke={cfgInfo.color} strokeWidth={3.5} strokeLinecap="round" />
+                <circle cx={cx - 28} cy={ax} r={4.5} fill={cfgInfo.color} />
+                <circle cx={cx + 28} cy={ax} r={4.5} fill={cfgInfo.color} />
+                <path d={`M${cx + 18},${ax - 14} A 14 14 0 1 1 ${cx - 18},${ax - 14}`}
+                  fill="none" stroke={cfgInfo.color} strokeWidth={1.5} opacity={0.65} />
+                <polygon points={`${cx - 18},${ax - 17} ${cx - 22},${ax - 11} ${cx - 14},${ax - 11}`}
+                  fill={cfgInfo.color} opacity={0.65} />
+              </g>
+            );
+          }
+          if (config === 'longitudinal') {
+            return (
+              <g>
+                <circle cx={cx} cy={ax} r={12} fill="none" stroke={cfgInfo.color} strokeWidth={2.5} />
+                <circle cx={cx} cy={ax} r={3.5} fill={cfgInfo.color} />
+                <path d={`M${cx + 9},${ax - 9} A 12 12 0 1 1 ${cx - 9},${ax - 9}`}
+                  fill="none" stroke={cfgInfo.color} strokeWidth={1.5} opacity={0.65} />
+                <polygon points={`${cx - 9},${ax - 12} ${cx - 13},${ax - 6} ${cx - 5},${ax - 6}`}
+                  fill={cfgInfo.color} opacity={0.65} />
+              </g>
+            );
+          }
+          // counter — same axis as transversal, reversed rotation
+          return (
+            <g>
+              <line x1={cx - 28} y1={ax} x2={cx + 28} y2={ax}
+                stroke={cfgInfo.color} strokeWidth={3.5} strokeLinecap="round" />
+              <circle cx={cx - 28} cy={ax} r={4.5} fill={cfgInfo.color} />
+              <circle cx={cx + 28} cy={ax} r={4.5} fill={cfgInfo.color} />
+              <path d={`M${cx - 18},${ax - 14} A 14 14 0 1 0 ${cx + 18},${ax - 14}`}
+                fill="none" stroke={cfgInfo.color} strokeWidth={1.5} opacity={0.8} />
+              <polygon points={`${cx + 18},${ax - 17} ${cx + 22},${ax - 11} ${cx + 14},${ax - 11}`}
+                fill={cfgInfo.color} opacity={0.8} />
+            </g>
+          );
+        })()}
 
-        {/* ── Frame/subframe ── */}
-        <path d={`M${cx - 30},${groundY - 130} L${cx - 22},${groundY - 170} L${cx + 22},${groundY - 170} L${cx + 30},${groundY - 130}`}
-          fill="#222" stroke="#555" strokeWidth={1.5} />
+        {/* ── Tail / subframe (tapers from engine top to seat) ── */}
+        <path d={`
+          M${cx - engineW / 2 + 10},${engineTop}
+          L${cx - tailHalfW},${tailTopY}
+          L${cx + tailHalfW},${tailTopY}
+          L${cx + engineW / 2 - 10},${engineTop}
+          Z
+        `}
+          fill="#23232b" stroke="#555" strokeWidth={1.5} />
 
-        {/* ── Fuel tank ── */}
-        <path d={`M${cx - 24},${groundY - 168} Q${cx - 30},${groundY - 190} ${cx - 18},${groundY - 200}
-                   L${cx + 18},${groundY - 200} Q${cx + 30},${groundY - 190} ${cx + 24},${groundY - 168} Z`}
-          fill="#2a2a35" stroke="#666" strokeWidth={1.5} />
+        {/* Seat cap */}
+        <ellipse cx={cx} cy={tailTopY - 2} rx={tailHalfW + 2} ry={4}
+          fill="#2c2c35" stroke="#666" strokeWidth={1.2} />
 
-        {/* ── Seat ── */}
-        <path d={`M${cx - 22},${groundY - 168} Q${cx},${groundY - 175} ${cx + 8},${groundY - 168}`}
-          fill="none" stroke="#888" strokeWidth={3} strokeLinecap="round" />
+        {/* ── Rider torso (shoulders wider than seat) ── */}
+        <path d={`
+          M${cx - tailHalfW},${torsoBotY}
+          L${cx - torsoHalfW + 4},${torsoTopY + 8}
+          Q${cx - torsoHalfW},${torsoTopY} ${cx - torsoHalfW + 8},${torsoTopY}
+          L${cx + torsoHalfW - 8},${torsoTopY}
+          Q${cx + torsoHalfW},${torsoTopY} ${cx + torsoHalfW - 4},${torsoTopY + 8}
+          L${cx + tailHalfW},${torsoBotY}
+          Z
+        `}
+          fill="#2c3245" stroke="#4d566c" strokeWidth={1.5} />
+        {/* Suit zipper */}
+        <line x1={cx} y1={torsoBotY - 4} x2={cx} y2={torsoTopY + 6}
+          stroke="#1a1f2c" strokeWidth={1} />
 
-        {/* ── Clip-ons / handlebars ── */}
-        <line x1={cx - 26} y1={groundY - 200} x2={cx - 38} y2={groundY - 206}
-          stroke="#999" strokeWidth={2.5} strokeLinecap="round" />
-        <line x1={cx + 26} y1={groundY - 200} x2={cx + 38} y2={groundY - 206}
-          stroke="#999" strokeWidth={2.5} strokeLinecap="round" />
+        {/* ── Helmet ── */}
+        <ellipse cx={cx} cy={helmetCY} rx={helmetRX} ry={helmetRY}
+          fill="#1c1c24" stroke="#4a4a55" strokeWidth={1.5} />
+        {/* Helmet visor band */}
+        <path d={`
+          M${cx - helmetRX + 4},${helmetCY - 6}
+          Q${cx},${helmetCY - 11} ${cx + helmetRX - 4},${helmetCY - 6}
+          L${cx + helmetRX - 5},${helmetCY + 3}
+          Q${cx},${helmetCY + 5} ${cx - helmetRX + 5},${helmetCY + 3} Z
+        `}
+          fill="#3a4d5e" opacity={0.85} />
 
-        {/* ── Windscreen ── */}
-        <path d={`M${cx - 16},${groundY - 200} Q${cx},${groundY - 220} ${cx + 16},${groundY - 200}`}
-          fill="none" stroke="#556" strokeWidth={1.5} />
-
-        {/* ── Exhaust (right side) ── */}
-        <path d={`M${cx + 28},${groundY - 95} Q${cx + 40},${groundY - 80} ${cx + 35},${groundY - 55}`}
-          fill="none" stroke="#888" strokeWidth={3} strokeLinecap="round" />
       </g>
 
-      {/* ── Gyroscopic torque arrow (NOT leaned — stays in world frame) ── */}
+      {/* ── Gyroscopic torque arrow (world frame, doesn't lean) ── */}
       {Math.abs(leanDeg) > 2 && rpm > 1000 && (() => {
-        const arrowLen = 30 + torqueMag * 70;
+        const arrowLen = 30 + torqueMag * 80;
         let dx = 0;
         let dy = 0;
         let label = '';
 
         if (config === 'transversal') {
-          // Resists lean — pushes opposite to lean
           dx = leanDeg > 0 ? arrowLen : -arrowLen;
           label = 'Resiste inclinación';
         } else if (config === 'longitudinal') {
-          // Yaw torque — pushes forward/backward
           dy = -arrowLen * 0.7;
           label = 'Par de guiñada (yaw)';
         } else {
-          // Helps lean — pushes same direction as lean
           dx = leanDeg > 0 ? -arrowLen : arrowLen;
           label = 'Favorece inclinación';
         }
 
+        // Originate near the engine in world frame
         const startX = cx;
-        const startY = cy - 40;
+        const startY = engineCY - engineH / 2 - 6;
         const endX = startX + dx;
         const endY = startY + dy;
 
         return (
           <g>
-            {/* Arrow shaft */}
             <line x1={startX} y1={startY} x2={endX} y2={endY}
               stroke={cfgInfo.torqueColor} strokeWidth={2.5 + torqueMag * 2}
-              strokeLinecap="round" opacity={0.6 + torqueMag * 0.4} />
-            {/* Arrowhead */}
+              strokeLinecap="round" opacity={0.65 + torqueMag * 0.35} />
             {(() => {
               const angle = Math.atan2(endY - startY, endX - startX);
               const headLen = 10;
@@ -224,40 +257,45 @@ function MotorcycleRearView({
                   fill={cfgInfo.torqueColor} opacity={0.7 + torqueMag * 0.3} />
               );
             })()}
-            {/* Label */}
             <text x={endX + (dx > 0 ? 8 : dx < 0 ? -8 : 0)}
-              y={endY + (dy < 0 ? -8 : 0)}
+              y={endY + (dy < 0 ? -8 : 4)}
               textAnchor={dx > 0 ? 'start' : dx < 0 ? 'end' : 'middle'}
               fill={cfgInfo.torqueColor} fontSize={11} fontWeight={600}
-              opacity={0.7 + torqueMag * 0.3}>
+              opacity={0.8 + torqueMag * 0.2}>
               {label}
             </text>
           </g>
         );
       })()}
 
-      {/* Lean angle arc indicator */}
+      {/* Lean angle indicator — large arc passing outside the bike */}
       {Math.abs(leanDeg) > 1 && (() => {
-        const arcR = 60;
-        const startAngle = -Math.PI / 2; // straight up
+        const arcR = 290;
+        const startAngle = -Math.PI / 2;
         const endAngle = startAngle - (leanDeg * Math.PI) / 180;
         const x1 = cx + arcR * Math.cos(startAngle);
         const y1 = groundY + arcR * Math.sin(startAngle);
         const x2 = cx + arcR * Math.cos(endAngle);
         const y2 = groundY + arcR * Math.sin(endAngle);
-        const largeArc = Math.abs(leanDeg) > 180 ? 1 : 0;
         const sweep = leanDeg > 0 ? 0 : 1;
+
+        const labelR = arcR + 14;
+        const labelX = cx + labelR * Math.cos(endAngle);
+        const labelY = groundY + labelR * Math.sin(endAngle);
+
         return (
           <g>
-            {/* Vertical reference */}
-            <line x1={cx} y1={groundY} x2={cx} y2={groundY - arcR - 5}
-              stroke="#444" strokeWidth={1} strokeDasharray="3 3" />
             {/* Arc */}
-            <path d={`M${x1},${y1} A${arcR},${arcR} 0 ${largeArc},${sweep} ${x2},${y2}`}
-              fill="none" stroke="#666" strokeWidth={1.5} />
-            {/* Angle text */}
-            <text x={cx + (leanDeg > 0 ? -20 : 20)} y={groundY - arcR - 8}
-              fill="#888" fontSize={11} fontWeight={600} textAnchor="middle">
+            <path d={`M${x1},${y1} A${arcR},${arcR} 0 0,${sweep} ${x2},${y2}`}
+              fill="none" stroke="#666" strokeWidth={1} />
+            {/* Vertical reference notch at top of arc */}
+            <circle cx={cx} cy={groundY - arcR} r={2.5} fill="#888" />
+            <text x={cx} y={groundY - arcR - 8}
+              fill="#666" fontSize={9} textAnchor="middle">vertical</text>
+            {/* Angle label at end of arc */}
+            <text x={labelX} y={labelY}
+              fill="#bbb" fontSize={13} fontWeight={600}
+              textAnchor="middle" dominantBaseline="middle">
               {Math.abs(leanDeg)}°
             </text>
           </g>

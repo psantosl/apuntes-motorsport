@@ -58,7 +58,14 @@ function VSchematic({
   cy: number;
 }) {
   const halfAngle = (angleDeg / 2) * (Math.PI / 180);
-  const bankLength = cylPerBank * 30;
+
+  const cylR = 12;
+  const crankR = 10;
+  const cylSpacing = 30;          // distance between cylinder centers along the bank
+  const firstCylDist = 30;        // distance from crank centre to centre of first cylinder
+  const lastCylDist = firstCylDist + (cylPerBank - 1) * cylSpacing;
+  const bankStart = crankR + 4;   // bank line starts past the crankcase
+  const bankEnd = lastCylDist + cylR + 4;
 
   // Left bank goes up-left, right bank goes up-right
   const leftDx = -Math.sin(halfAngle);
@@ -66,61 +73,58 @@ function VSchematic({
   const rightDx = Math.sin(halfAngle);
   const rightDy = -Math.cos(halfAngle);
 
-  const cylR = 11;
+  function bank(side: 'l' | 'r', dx: number, dy: number, baseIdx: number) {
+    return (
+      <g>
+        {/* Bank line */}
+        <line
+          x1={cx + dx * bankStart} y1={cy + dy * bankStart}
+          x2={cx + dx * bankEnd} y2={cy + dy * bankEnd}
+          stroke="#4B5563" strokeWidth={3} strokeLinecap="round"
+        />
+        {/* Cylinders */}
+        {Array.from({ length: cylPerBank }).map((_, i) => {
+          const dist = firstCylDist + i * cylSpacing;
+          const x = cx + dx * dist;
+          const y = cy + dy * dist;
+          const colorKey = (((baseIdx + i) % 6) + 1) as keyof typeof PISTON_COLORS;
+          const color = PISTON_COLORS[colorKey];
+          return (
+            <circle key={`${side}${i}`} cx={x} cy={y} r={cylR}
+              fill={color} fillOpacity={0.25} stroke={color} strokeWidth={1.5} />
+          );
+        })}
+      </g>
+    );
+  }
 
   return (
     <g>
-      {/* Bank lines */}
-      <line
-        x1={cx} y1={cy}
-        x2={cx + leftDx * bankLength} y2={cy + leftDy * bankLength}
-        stroke="#4B5563" strokeWidth={3} strokeLinecap="round"
-      />
-      <line
-        x1={cx} y1={cy}
-        x2={cx + rightDx * bankLength} y2={cy + rightDy * bankLength}
-        stroke="#4B5563" strokeWidth={3} strokeLinecap="round"
-      />
+      {bank('l', leftDx, leftDy, 0)}
+      {bank('r', rightDx, rightDy, cylPerBank)}
 
-      {/* Cylinders on left bank */}
-      {Array.from({ length: cylPerBank }).map((_, i) => {
-        const t = (i + 0.6) / cylPerBank;
-        const x = cx + leftDx * t * bankLength;
-        const y = cy + leftDy * t * bankLength;
-        const color = PISTON_COLORS[(i + 1) as keyof typeof PISTON_COLORS] || '#378ADD';
+      {/* Crankcase (on top of bank-line stubs) */}
+      <circle cx={cx} cy={cy} r={crankR} fill="#374151" stroke="#9CA3AF" strokeWidth={1.5} />
+      <circle cx={cx} cy={cy} r={3} fill="#9CA3AF" />
+
+      {/* Angle arc + label */}
+      {(() => {
+        const arcR = Math.min(28, firstCylDist - cylR - 2);
         return (
-          <circle key={`l${i}`} cx={x} cy={y} r={cylR}
-            fill={color} opacity={0.25} stroke={color} strokeWidth={1.5} />
+          <>
+            <path
+              d={`M ${cx + leftDx * arcR} ${cy + leftDy * arcR} A ${arcR} ${arcR} 0 0 1 ${cx + rightDx * arcR} ${cy + rightDy * arcR}`}
+              fill="none" stroke="#F59E0B" strokeWidth={1.2} strokeDasharray="3 2"
+            />
+            <text
+              x={cx} y={cy - arcR - 6}
+              fill="#F59E0B" fontSize={12} fontWeight={700} textAnchor="middle"
+            >
+              {angleDeg}°
+            </text>
+          </>
         );
-      })}
-
-      {/* Cylinders on right bank */}
-      {Array.from({ length: cylPerBank }).map((_, i) => {
-        const t = (i + 0.6) / cylPerBank;
-        const x = cx + rightDx * t * bankLength;
-        const y = cy + rightDy * t * bankLength;
-        const idx = cylPerBank + i + 1;
-        const color = PISTON_COLORS[(idx <= 6 ? idx : 1) as keyof typeof PISTON_COLORS] || '#378ADD';
-        return (
-          <circle key={`r${i}`} cx={x} cy={y} r={cylR}
-            fill={color} opacity={0.25} stroke={color} strokeWidth={1.5} />
-        );
-      })}
-
-      {/* Crankcase */}
-      <circle cx={cx} cy={cy} r={8} fill="#6B7280" stroke="#9CA3AF" strokeWidth={1.5} />
-
-      {/* Angle arc */}
-      <path
-        d={`M ${cx + leftDx * 30} ${cy + leftDy * 30} A 30 30 0 0 1 ${cx + rightDx * 30} ${cy + rightDy * 30}`}
-        fill="none" stroke="#F59E0B" strokeWidth={1.2} strokeDasharray="3 2"
-      />
-      <text
-        x={cx} y={cy - 35}
-        fill="#F59E0B" fontSize={12} fontWeight={700} textAnchor="middle"
-      >
-        {angleDeg}°
-      </text>
+      })()}
     </g>
   );
 }
@@ -281,6 +285,20 @@ export default function S11Configuraciones() {
       {/* ── SUMMARY TABLE ── */}
       <div>
         <h3 className="text-xl text-gray-200 font-semibold mb-4">Resumen de configuraciones</h3>
+
+        <div className="bg-gray-800/30 rounded-lg p-4 mb-4 max-w-2xl text-sm text-gray-400 leading-relaxed">
+          <p>
+            <strong className="text-white">Balance 1° (primario):</strong> vibración a la frecuencia
+            del cigüeñal — una oscilación por revolución, generada por el movimiento alternativo
+            del pistón.
+          </p>
+          <p className="mt-2">
+            <strong className="text-white">Balance 2° (secundario):</strong> vibración al doble de
+            frecuencia — dos oscilaciones por revolución, debida a la geometría finita de la biela
+            (el pistón no se mueve de forma puramente sinusoidal). Ver sección 5 (Fuerzas).
+          </p>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full max-w-2xl text-sm border-collapse">
             <thead>

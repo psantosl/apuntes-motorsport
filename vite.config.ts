@@ -5,4 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   base: '/apuntes-motorsport/',
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    entries: ['index.html'],
+  },
 })
