@@ -45,7 +45,7 @@ function InlineSchematic({ count, cx, cy }: { count: number; cx: number; cy: num
   );
 }
 
-/* ── V engine schematic (front view) ── */
+/* ── V engine schematic (proper front view: one cylinder cross-section per bank) ── */
 function VSchematic({
   angleDeg,
   cylPerBank,
@@ -59,57 +59,92 @@ function VSchematic({
 }) {
   const halfAngle = (angleDeg / 2) * (Math.PI / 180);
 
-  const cylR = 12;
-  const crankR = 10;
-  const cylSpacing = 30;          // distance between cylinder centers along the bank
-  const firstCylDist = 30;        // distance from crank centre to centre of first cylinder
-  const lastCylDist = firstCylDist + (cylPerBank - 1) * cylSpacing;
-  const bankStart = crankR + 4;   // bank line starts past the crankcase
-  const bankEnd = lastCylDist + cylR + 4;
+  const crankR = 12;
+  const cylBore = 24;             // cylinder bore (perpendicular to bank axis)
+  const blockLen = 58;            // cylinder block length along bank (skirt to head)
+  const blockStart = crankR + 4;  // distance from crank centre to skirt of block
+  const blockEnd = blockStart + blockLen;
 
-  // Left bank goes up-left, right bank goes up-right
+  // Bank unit vectors (pointing away from crankcase along bank)
   const leftDx = -Math.sin(halfAngle);
   const leftDy = -Math.cos(halfAngle);
   const rightDx = Math.sin(halfAngle);
   const rightDy = -Math.cos(halfAngle);
 
-  function bank(side: 'l' | 'r', dx: number, dy: number, baseIdx: number) {
+  function bank(dx: number, dy: number, color: string, key: string) {
+    // perpendicular axis (bore width direction)
+    const px = -dy;
+    const py = dx;
+    const half = cylBore / 2;
+
+    // Block corners (rectangle aligned with bank axis)
+    const skirtCx = cx + dx * blockStart;
+    const skirtCy = cy + dy * blockStart;
+    const headCx = cx + dx * blockEnd;
+    const headCy = cy + dy * blockEnd;
+
+    const c1 = { x: skirtCx + px * half, y: skirtCy + py * half };
+    const c2 = { x: headCx + px * half,  y: headCy + py * half };
+    const c3 = { x: headCx - px * half,  y: headCy - py * half };
+    const c4 = { x: skirtCx - px * half, y: skirtCy - py * half };
+
+    // Piston ~40% up the bore (mid-stroke)
+    const pistonDist = blockStart + blockLen * 0.4;
+    const pCx = cx + dx * pistonDist;
+    const pCy = cy + dy * pistonDist;
+    const p1 = { x: pCx + px * (half - 1.5), y: pCy + py * (half - 1.5) };
+    const p2 = { x: pCx - px * (half - 1.5), y: pCy - py * (half - 1.5) };
+
+    // Cylinder count badge — just outside the head, on the bank axis
+    const badgeDist = blockEnd + 14;
+    const badgeX = cx + dx * badgeDist;
+    const badgeY = cy + dy * badgeDist;
+
     return (
-      <g>
-        {/* Bank line */}
-        <line
-          x1={cx + dx * bankStart} y1={cy + dy * bankStart}
-          x2={cx + dx * bankEnd} y2={cy + dy * bankEnd}
-          stroke="#4B5563" strokeWidth={3} strokeLinecap="round"
+      <g key={key}>
+        {/* Block outline */}
+        <path
+          d={`M${c1.x},${c1.y} L${c2.x},${c2.y} L${c3.x},${c3.y} L${c4.x},${c4.y} Z`}
+          fill={color} fillOpacity={0.1}
+          stroke={color} strokeWidth={1.5} strokeLinejoin="round"
         />
-        {/* Cylinders */}
-        {Array.from({ length: cylPerBank }).map((_, i) => {
-          const dist = firstCylDist + i * cylSpacing;
-          const x = cx + dx * dist;
-          const y = cy + dy * dist;
-          const colorKey = (((baseIdx + i) % 6) + 1) as keyof typeof PISTON_COLORS;
-          const color = PISTON_COLORS[colorKey];
-          return (
-            <circle key={`${side}${i}`} cx={x} cy={y} r={cylR}
-              fill={color} fillOpacity={0.25} stroke={color} strokeWidth={1.5} />
-          );
-        })}
+        {/* Piston */}
+        <line
+          x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
+          stroke={color} strokeWidth={6} strokeLinecap="round" opacity={0.9}
+        />
+        {/* Connecting rod (crank centre to piston pin) */}
+        <line
+          x1={cx} y1={cy} x2={pCx} y2={pCy}
+          stroke="#6B7280" strokeWidth={1.5}
+        />
+        {/* Cylinder count badge: how many cylinders lie behind in this bank */}
+        <text
+          x={badgeX} y={badgeY}
+          textAnchor="middle" dominantBaseline="middle"
+          fontSize={12} fontWeight={700} fill={color}
+        >
+          ×{cylPerBank}
+        </text>
       </g>
     );
   }
 
+  const colorL = PISTON_COLORS[1];
+  const colorR = PISTON_COLORS[2];
+
   return (
     <g>
-      {bank('l', leftDx, leftDy, 0)}
-      {bank('r', rightDx, rightDy, cylPerBank)}
+      {bank(leftDx, leftDy, colorL, 'L')}
+      {bank(rightDx, rightDy, colorR, 'R')}
 
-      {/* Crankcase (on top of bank-line stubs) */}
-      <circle cx={cx} cy={cy} r={crankR} fill="#374151" stroke="#9CA3AF" strokeWidth={1.5} />
-      <circle cx={cx} cy={cy} r={3} fill="#9CA3AF" />
+      {/* Crankcase / crank centre */}
+      <circle cx={cx} cy={cy} r={crankR} fill="#1f2937" stroke="#9CA3AF" strokeWidth={1.5} />
+      <circle cx={cx} cy={cy} r={3.5} fill="#9CA3AF" />
 
       {/* Angle arc + label */}
       {(() => {
-        const arcR = Math.min(28, firstCylDist - cylR - 2);
+        const arcR = blockStart - 2;
         return (
           <>
             <path
@@ -222,6 +257,9 @@ export default function S11Configuraciones() {
         <h3 className="text-xl text-gray-200 font-semibold mb-4">Motores en V</h3>
         <p className="text-gray-400 text-sm mb-4">
           Dos bancadas de cilindros forman un ángulo. El ángulo afecta al equilibrado y las dimensiones del motor.
+          La vista frontal muestra <strong className="text-gray-200">un cilindro por bancada</strong> (corte
+          transversal). El número <span className="text-gray-200 font-semibold">×N</span> indica cuántos cilindros
+          hay en realidad en cada bancada, alineados a lo largo del cigüeñal hacia adentro de la imagen.
         </p>
 
         {/* Presets */}
