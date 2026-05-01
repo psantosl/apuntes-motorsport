@@ -70,6 +70,18 @@ export default function Sidebar({ activeSection }: SidebarProps) {
               </li>
             ))}
           </ul>
+
+          <div className="mt-6 pt-4 border-t border-gray-800">
+            <p className="px-3 mb-2 text-xs uppercase tracking-wide text-gray-500">Herramientas</p>
+            <a
+              href={`${import.meta.env.BASE_URL}visualizador-motor.html`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block px-3 py-2 rounded text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+            >
+              Visualizador 3D de motor ↗
+            </a>
+          </div>
         </div>
       </nav>
     </>

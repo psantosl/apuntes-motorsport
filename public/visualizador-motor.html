@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Visualizador de motor — orden de encendido</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    overflow: hidden;
+  }
+  #app { display: flex; height: 100vh; }
+  #scene-container {
+    flex: 1;
+    position: relative;
+    background: linear-gradient(135deg, #4a5878 0%, #2a3850 100%);
+  }
+  #canvas { width: 100%; height: 100%; display: block; }
+  #info-overlay {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(20, 20, 30, 0.85);
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  #info-overlay strong { color: #ffd54f; }
+  #info-overlay .firing { color: #ff5252; font-weight: bold; }
+  #panel {
+    width: 340px;
+    background: #232336;
+    padding: 20px;
+    overflow-y: auto;
+    border-left: 1px solid #3a3a50;
+  }
+  #panel h1 {
+    font-size: 18px;
+    color: #ffd54f;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #3a3a50;
+    padding-bottom: 8px;
+  }
+  #panel h2 {
+    font-size: 14px;
+    color: #80cbc4;
+    margin-top: 16px;
+    margin-bottom: 8px;
+  }
+  .engine-btn {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    background: #2c2c44;
+    color: #e0e0e0;
+    border: 1px solid #3a3a50;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 13px;
+    transition: background 0.2s;
+  }
+  .engine-btn:hover { background: #3a3a50; }
+  .engine-btn.active {
+    background: #4a3a8a;
+    border-color: #7c4dff;
+    color: #fff;
+  }
+  .control-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .control-row label { flex: 1; font-size: 13px; }
+  .control-row input[type="range"] { flex: 2; }
+  .control-row input[type="checkbox"] { width: 18px; height: 18px; }
+  button.action {
+    width: 100%;
+    padding: 8px;
+    background: #4a3a8a;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+  button.action:hover { background: #5e4ab0; }
+  .firing-table {
+    width: 100%;
+    font-size: 12px;
+    margin-top: 8px;
+    border-collapse: collapse;
+  }
+  .firing-table td {
+    padding: 4px 6px;
+    border: 1px solid #3a3a50;
+  }
+  .firing-table .cyl-firing {
+    background: #d32f2f;
+    color: white;
+    font-weight: bold;
+  }
+  .description {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #b0b0b0;
+    background: #1a1a2a;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+  }
+  .help {
+    font-size: 11px;
+    color: #888;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #3a3a50;
+    line-height: 1.5;
+  }
+  .firing-bar {
+    height: 24px;
+    background: #1a1a2a;
+    border: 1px solid #3a3a50;
+    border-radius: 4px;
+    margin-top: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .firing-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4a3a8a, #7c4dff);
+    transition: width 0.05s linear;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="scene-container">
+    <canvas id="canvas"></canvas>
+    <div id="info-overlay">
+      <div>Motor: <strong id="info-engine">—</strong></div>
+      <div>Ángulo cigüeñal: <strong id="info-angle">0°</strong></div>
+      <div>Velocidad: <strong id="info-rpm">0</strong></div>
+      <div>Cilindro disparando: <span class="firing" id="info-firing">—</span></div>
+    </div>
+  </div>
+  <div id="panel">
+    <h1>Visualizador de motor</h1>
+
+    <h2>Tipo de motor</h2>
+    <button class="engine-btn active" data-engine="inline4">4 cilindros en línea (screamer)</button>
+    <button class="engine-btn" data-engine="inline4-crossplane">4 cilindros crossplane (Yamaha R1)</button>
+    <button class="engine-btn" data-engine="v6-60">V6 a 60° (Audi/Mercedes)</button>
+    <button class="engine-btn" data-engine="v8-crossplane">V8 crossplane (Mustang/AMG GT)</button>
+    <button class="engine-btn" data-engine="v8-flatplane">V8 flat-plane (Ferrari/F1)</button>
+    <button class="engine-btn" data-engine="v4-bigbang">V4 big-bang (Aprilia RSV4)</button>
+
+    <h2>Información</h2>
+    <div class="description" id="engine-description">Selecciona un motor.</div>
+
+    <h2>Orden de encendido</h2>
+    <table class="firing-table" id="firing-table"></table>
+
+    <h2>Progreso del ciclo (720°)</h2>
+    <div class="firing-bar"><div class="firing-bar-fill" id="cycle-bar"></div></div>
+
+    <h2>Controles</h2>
+    <div class="control-row">
+      <label>Velocidad</label>
+      <input type="range" id="speed" min="1" max="100" value="3">
+    </div>
+    <div class="control-row">
+      <input type="checkbox" id="show-rods" checked>
+      <label>Bielas</label>
+      <input type="checkbox" id="show-pistons" checked>
+      <label>Pistones</label>
+    </div>
+    <button class="action" id="pause-btn">⏸ Pausar</button>
+    <button class="action" id="reset-btn">↻ Reset</button>
+
+    <div class="help">
+      <strong>Cómo navegar:</strong><br>
+      • Arrastra con el ratón para rotar<br>
+      • Rueda para zoom<br>
+      • Click derecho + arrastrar para mover<br>
+      • Pausa para examinar un instante
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ============================================================
+// MATEMÁTICAS DE LA CINEMÁTICA
+// ============================================================
+//
+// Posición del muñón de biela (crank pin):
+//   cp = (R * sin(θ + φ),  R * cos(θ + φ))
+//   donde φ es el ángulo del muñón en reposo (θ=0)
+//
+// El cilindro tiene su eje (bore) inclinado β grados desde la vertical:
+//   boreDir = (sin β, cos β)
+//
+// Posición del pistón a lo largo del eje del cilindro:
+//   alongBore = cp · boreDir = R * cos((θ + φ) - β)
+//   pistonPos = alongBore + sqrt(L² - perpDist²)   [cinemática biela-manivela]
+//
+// El pistón está en TDC cuando alongBore es máximo:
+//   (θ + φ) - β = 0   →   θ_TDC = β - φ   (mod 360°)
+//
+// Por tanto, para que un cilindro dispare en θ_fire:
+//   φ = β - θ_fire   (mod 360°)
+// ============================================================
+
+const DEG = Math.PI / 180;
+
+// Helper: calcula el ángulo de muñón necesario para que un cilindro
+// con bankAngle β dispare en θ_fire grados.
+function phiFor(bankAngle, fireAngle) {
+  return ((bankAngle - fireAngle) % 360 + 360) % 360;
+}
+
+// ============================================================
+// CONFIGURACIÓN DE MOTORES
+// ============================================================
+//
+// Para cada cilindro:
+//   crankAngle: ángulo de su muñón respecto al cigüeñal (grados)
+//   bankAngle: 0 = vertical, +α = banco derecho, -α = banco izquierdo
+//   zIndex: posición a lo largo del cigüeñal
+//
+// firingOrder: índices de cilindros en orden de encendido
+// firingPattern: ángulos de cigüeñal cuando dispara cada uno (en orden)
+
+const ENGINES = {
+  'inline4': {
+    name: '4 cilindros en línea (screamer)',
+    description: 'Cigüeñal estándar a 180°. Cilindros 1+4 suben juntos, 2+3 también pero opuestos. Orden de encendido 1-3-4-2 con explosiones cada 180° (uniformes). Es el screamer clásico.',
+    cylinders: [
+      { name: 'Cil 1', crankAngle: phiFor(0, 0),   bankAngle: 0, zIndex: 0 },
+      { name: 'Cil 2', crankAngle: phiFor(0, 540), bankAngle: 0, zIndex: 1 },
+      { name: 'Cil 3', crankAngle: phiFor(0, 180), bankAngle: 0, zIndex: 2 },
+      { name: 'Cil 4', crankAngle: phiFor(0, 360), bankAngle: 0, zIndex: 3 }
+    ],
+    firingOrder: [0, 2, 3, 1],     // Cil 1 → Cil 3 → Cil 4 → Cil 2
+    firingPattern: [0, 180, 360, 540]
+  },
+
+  'inline4-crossplane': {
+    name: '4 cilindros crossplane (Yamaha R1, M1)',
+    description: 'Cigüeñal con muñones a 90° entre sí (en cruz). Pulsos NO uniformes — intervalos 270°-180°-90°-180°. Yamaha lo introdujo en M1 (MotoGP) y luego en R1 desde 2009 para mejor tracción. Suena más "tractor" que un screamer.',
+    cylinders: [
+      // Firing order 1-3-2-4 con intervalos 270°-180°-90°-180°
+      // Firings en: 0°, 270°, 450°, 540°
+      { name: 'Cil 1', crankAngle: phiFor(0, 0),   bankAngle: 0, zIndex: 0 },  // fires at 0°
+      { name: 'Cil 2', crankAngle: phiFor(0, 450), bankAngle: 0, zIndex: 1 },  // fires at 450°
+      { name: 'Cil 3', crankAngle: phiFor(0, 270), bankAngle: 0, zIndex: 2 },  // fires at 270°
+      { name: 'Cil 4', crankAngle: phiFor(0, 540), bankAngle: 0, zIndex: 3 }   // fires at 540°
+    ],
+    firingOrder: [0, 2, 1, 3],     // Cil 1 → Cil 3 → Cil 2 → Cil 4
+    firingPattern: [0, 270, 450, 540]
+  },
+
+  'v6-60': {
+    name: 'V6 a 60° (Audi/Mercedes)',
+    description: 'V6 con bancos a 60° y cigüeñal split-pin (3 pares de muñones, cada par offset 60°). Orden 1-4-2-5-3-6 alternando bancos cada 120°. Suena equilibrado.',
+    cylinders: [
+      // Bank LEFT (-30°): Cil 1, 2, 3 en z=0,1,2
+      { name: 'Cil 1', crankAngle: phiFor(-30, 0),   bankAngle: -30, zIndex: 0 },  // fires 0°
+      { name: 'Cil 2', crankAngle: phiFor(-30, 240), bankAngle: -30, zIndex: 1 },  // fires 240°
+      { name: 'Cil 3', crankAngle: phiFor(-30, 480), bankAngle: -30, zIndex: 2 },  // fires 480°
+      // Bank RIGHT (+30°): Cil 4, 5, 6 en z=0,1,2
+      { name: 'Cil 4', crankAngle: phiFor(30, 120),  bankAngle: 30,  zIndex: 0 },  // fires 120°
+      { name: 'Cil 5', crankAngle: phiFor(30, 360),  bankAngle: 30,  zIndex: 1 },  // fires 360°
+      { name: 'Cil 6', crankAngle: phiFor(30, 600),  bankAngle: 30,  zIndex: 2 }   // fires 600°
+    ],
+    firingOrder: [0, 3, 1, 4, 2, 5],   // Cil 1-4-2-5-3-6
+    firingPattern: [0, 120, 240, 360, 480, 600]
+  },
+
+  'v8-crossplane': {
+    name: 'V8 crossplane (Mustang/AMG GT)',
+    description: 'V8 con cigüeñal en cruz (4 muñones a 90° entre sí). Cada banco tiene firings IRREGULARES (eso produce el burble americano). Versión simplificada para ver el patrón cruz claramente.',
+    cylinders: [
+      // Cada par (L, R) en mismo z comparte muñón. 4 muñones a 90° → cruz.
+      // z=0 muñón a 315° (Cyl 1 fires 0°, Cyl 2 fires 90°)
+      // z=1 muñón a 45°  (Cyl 3 fires 270°, Cyl 4 fires 360°)
+      // z=2 muñón a 225° (Cyl 5 fires 450°, Cyl 6 fires 540°)
+      // z=3 muñón a 135° (Cyl 7 fires 180°, Cyl 8 fires 630°)
+      { name: 'Cil 1', crankAngle: 315, bankAngle: -45, zIndex: 0 },
+      { name: 'Cil 2', crankAngle: 315, bankAngle: 45,  zIndex: 0 },
+      { name: 'Cil 3', crankAngle: 45,  bankAngle: -45, zIndex: 1 },
+      { name: 'Cil 4', crankAngle: 45,  bankAngle: 45,  zIndex: 1 },
+      { name: 'Cil 5', crankAngle: 225, bankAngle: -45, zIndex: 2 },
+      { name: 'Cil 6', crankAngle: 225, bankAngle: 45,  zIndex: 2 },
+      { name: 'Cil 7', crankAngle: 135, bankAngle: -45, zIndex: 3 },
+      { name: 'Cil 8', crankAngle: 135, bankAngle: 45,  zIndex: 3 }
+    ],
+    // Firing order: Cyl 1, Cyl 2, Cyl 7, Cyl 4, Cyl 5, Cyl 6, Cyl 3, Cyl 8
+    // (cada 90° pero seleccionando uno de cada par TDC)
+    // Indices: Cil1=0, Cil2=1, Cil3=2, Cil4=3, Cil5=4, Cil6=5, Cil7=6, Cil8=7
+    firingOrder: [0, 1, 6, 3, 4, 5, 2, 7],
+    firingPattern: [0, 90, 180, 270, 450, 540, 630, /* pause to next cycle */ 360]
+    // Reordenando para que firingPattern esté en orden ascendente:
+    // pero firingOrder y firingPattern van pareados, así que:
+    // En realidad: Cyl 1 (0°), Cyl 2 (90°), Cyl 7 (180°), Cyl 4 (360°),
+    //              Cyl 3 (270°), Cyl 5 (450°), Cyl 6 (540°), Cyl 8 (630°)
+    // Pero el orden cronológico es: 0°, 90°, 180°, 270°, 360°, 450°, 540°, 630°
+    // → Cyl 1, Cyl 2, Cyl 7, Cyl 3, Cyl 4, Cyl 5, Cyl 6, Cyl 8
+  },
+
+  'v8-flatplane': {
+    name: 'V8 flat-plane (Ferrari/F1)',
+    description: 'V8 con cigüeñal plano (4 muñones a 0°/180°, como dos I4 unidos). Pulsos perfectamente alternados entre bancos (cada banco fires uniformes cada 180°). Suena agudo "F1".',
+    cylinders: [
+      // Pin layout: 0°, 180°, 180°, 0° (flat, solo 2 ángulos)
+      // z=0 muñón a 315°: Cyl 1 (fires 0°), Cyl 2 (fires 90°)
+      // z=1 muñón a 135°: Cyl 3 (fires 180°), Cyl 4 (fires 270°)
+      // z=2 muñón a 135°: Cyl 5 (fires 540°), Cyl 6 (fires 630°)
+      // z=3 muñón a 315°: Cyl 7 (fires 360°), Cyl 8 (fires 450°)
+      { name: 'Cil 1', crankAngle: 315, bankAngle: -45, zIndex: 0 },
+      { name: 'Cil 2', crankAngle: 315, bankAngle: 45,  zIndex: 0 },
+      { name: 'Cil 3', crankAngle: 135, bankAngle: -45, zIndex: 1 },
+      { name: 'Cil 4', crankAngle: 135, bankAngle: 45,  zIndex: 1 },
+      { name: 'Cil 5', crankAngle: 135, bankAngle: -45, zIndex: 2 },
+      { name: 'Cil 6', crankAngle: 135, bankAngle: 45,  zIndex: 2 },
+      { name: 'Cil 7', crankAngle: 315, bankAngle: -45, zIndex: 3 },
+      { name: 'Cil 8', crankAngle: 315, bankAngle: 45,  zIndex: 3 }
+    ],
+    // Indices: Cil1=0, Cil2=1, Cil3=2, Cil4=3, Cil5=4, Cil6=5, Cil7=6, Cil8=7
+    // Orden cronológico cada 90°:
+    // 0°: Cil 1 (0)
+    // 90°: Cil 2 (1)
+    // 180°: Cil 3 (2)
+    // 270°: Cil 4 (3)
+    // 360°: Cil 7 (6)
+    // 450°: Cil 8 (7)
+    // 540°: Cil 5 (4)
+    // 630°: Cil 6 (5)
+    firingOrder: [0, 1, 2, 3, 6, 7, 4, 5],
+    firingPattern: [0, 90, 180, 270, 360, 450, 540, 630]
+  },
+
+  'v4-bigbang': {
+    name: 'V4 big-bang 90° (Aprilia RSV4 / Ducati Panigale)',
+    description: 'V4 a 90° con orden de encendido CLUSTERED ("twin-pulse"). Pulsos: Cyl 1 (banco izq), Cyl 2 (banco der) muy juntos → pausa larga → Cyl 3 (izq), Cyl 4 (der) juntos → pausa larga. Mejor tracción del neumático.',
+    cylinders: [
+      // z=0 muñón a 315°: Cyl 1 (fires 0°), Cyl 2 (fires 90°)
+      // z=1 muñón a 25°:  Cyl 3 (fires 290°), Cyl 4 (fires 380°)
+      { name: 'Cil 1', crankAngle: 315, bankAngle: -45, zIndex: 0 },  // banco izq
+      { name: 'Cil 2', crankAngle: 315, bankAngle: 45,  zIndex: 0 },  // banco der
+      { name: 'Cil 3', crankAngle: 25,  bankAngle: -45, zIndex: 1 },  // banco izq
+      { name: 'Cil 4', crankAngle: 25,  bankAngle: 45,  zIndex: 1 }   // banco der
+    ],
+    firingOrder: [0, 1, 2, 3],  // L, R, L, R (alternando bancos en cada twin-pulse)
+    firingPattern: [0, 90, 290, 380]
+  }
+};
+
+// Pequeño fix: algunos de los firingPattern arriba estaban en orden incorrecto.
+// Re-derivo los firingOrder de v8-crossplane correctamente.
+
+ENGINES['v8-crossplane'].firingOrder = [0, 1, 6, 2, 3, 4, 5, 7];
+ENGINES['v8-crossplane'].firingPattern = [0, 90, 180, 270, 360, 450, 540, 630];
+// Verificación:
+// 0°: Cyl 1 (φ=315, β=-45). TDC at θ = β - φ = -45 - 315 = -360 = 0° ✓
+// 90°: Cyl 2 (φ=315, β=45). TDC at 45 - 315 = -270 = 90° ✓
+// 180°: Cyl 7 (φ=135, β=-45). TDC at -45 - 135 = -180 = 180° ✓
+// 270°: Cyl 3 (φ=45, β=-45). TDC at -45 - 45 = -90 = 270° ✓
+// 360°: Cyl 4 (φ=45, β=45). TDC at 45 - 45 = 0° = 360° (next cycle TDC) ✓
+// 450°: Cyl 5 (φ=225, β=-45). TDC at -45 - 225 = -270 = 90° + 360 = 450° ✓
+// 540°: Cyl 6 (φ=225, β=45). TDC at 45 - 225 = -180 = 180° + 360 = 540° ✓
+// 630°: Cyl 8 (φ=135, β=45). TDC at 45 - 135 = -90 = 270° + 360 = 630° ✓
+
+// ============================================================
+// THREE.JS SETUP
+// ============================================================
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x3a4868);
+
+const container = document.getElementById('scene-container');
+
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 200);
+camera.position.set(15, 10, 15);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 2, 0);
+
+// Lighting
+scene.add(new THREE.AmbientLight(0xc0c0d0, 1.1));
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
+keyLight.position.set(10, 15, 5);
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0xc0d0ff, 0.7);
+fillLight.position.set(-8, 5, -5);
+scene.add(fillLight);
+
+const backLight = new THREE.DirectionalLight(0xffe0c0, 0.5);
+backLight.position.set(0, -3, -10);
+scene.add(backLight);
+
+const topLight = new THREE.DirectionalLight(0xffffff, 0.4);
+topLight.position.set(0, 20, 0);
+scene.add(topLight);
+
+// Resize
+function onResize() {
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+window.addEventListener('resize', onResize);
+onResize();
+
+// ============================================================
+// ENGINE BUILDER
+// ============================================================
+const engineGroup = new THREE.Group();
+scene.add(engineGroup);
+
+let currentEngine = null;
+let cylinderMeshes = [];
+
+// Crank parameters
+const CRANK_RADIUS = 1.0;
+const ROD_LENGTH = 3.5;
+const PISTON_HEIGHT = 1.0;
+const PISTON_RADIUS = 0.8;
+const CYL_SPACING = 2.5;
+
+// Materials
+const matCrank = new THREE.MeshStandardMaterial({ color: 0xa0a0b0, metalness: 0.7, roughness: 0.3 });
+const matCrankWeb = new THREE.MeshStandardMaterial({ color: 0x808890, metalness: 0.6, roughness: 0.4 });
+const matRod = new THREE.MeshStandardMaterial({ color: 0xd0d0d8, metalness: 0.5, roughness: 0.4 });
+const matPiston = new THREE.MeshStandardMaterial({ color: 0xe8d090, metalness: 0.6, roughness: 0.35 });
+const matCylinder = new THREE.MeshStandardMaterial({
+  color: 0xa0c0e0, metalness: 0.2, roughness: 0.6,
+  transparent: true, opacity: 0.18,
+  side: THREE.DoubleSide
+});
+const matFiring = new THREE.MeshStandardMaterial({
+  color: 0xff5030, emissive: 0xff3010, emissiveIntensity: 2.0
+});
+
+function buildEngine(engine) {
+  // Clear
+  while (engineGroup.children.length) {
+    const c = engineGroup.children[0];
+    engineGroup.remove(c);
+    if (c.geometry) c.geometry.dispose();
+    if (c.children) {
+      c.traverse(child => {
+        if (child.geometry) child.geometry.dispose();
+      });
+    }
+  }
+  cylinderMeshes = [];
+
+  currentEngine = engine;
+
+  const numZ = Math.max(...engine.cylinders.map(c => c.zIndex)) + 1;
+
+  // ─────────────────────────────────────────────────────────────────
+  // CIGÜEÑAL REALISTA: compuesto por bearings + webs + crank pins,
+  // dimensionados para que se vean CONECTADOS (bearings rellenan
+  // exactamente el hueco entre webs adyacentes).
+  // ─────────────────────────────────────────────────────────────────
+
+  const BEARING_RADIUS = 0.32;
+  const WEB_THICKNESS = 0.18;
+  const PIN_LENGTH = 0.4;
+  // Distancia desde el centro del cilindro al BORDE EXTERIOR del web exterior.
+  // Esto es lo que tiene que tocar el bearing.
+  const SECTION_OUTER_HALF = PIN_LENGTH / 2 + WEB_THICKNESS;  // = 0.38
+  const STAGGER = 0.6;  // desfase Z entre L y R bank
+  const hasRBank = engine.cylinders.some(c => c.bankAngle > 0);
+
+  // Bearings: uno antes del primer cilindro, uno entre cada par de cilindros,
+  // y uno después del último. Cada bearing toca los BORDES EXTERIORES de los
+  // webs adyacentes (sin overlap con webs).
+  for (let i = 0; i <= numZ; i++) {
+    let zStart, zEnd;
+
+    if (i === 0) {
+      // Antes del primer cilindro
+      zEnd = 0 - SECTION_OUTER_HALF;
+      zStart = zEnd - 0.5;
+    } else if (i === numZ) {
+      // Después del último cilindro (incluye stagger R si hay)
+      const lastSectionMaxZ = (numZ - 1) * CYL_SPACING + (hasRBank ? STAGGER : 0);
+      zStart = lastSectionMaxZ + SECTION_OUTER_HALF;
+      zEnd = zStart + 0.5;
+    } else {
+      // Entre sección i-1 y sección i
+      // Sección i-1: el R bank (si lo hay) está en (i-1)*SPACING + STAGGER
+      // Sección i: el L bank en i*SPACING
+      const prevSectionRightEdge = (i - 1) * CYL_SPACING + (hasRBank ? STAGGER : 0) + SECTION_OUTER_HALF;
+      const nextSectionLeftEdge = i * CYL_SPACING - SECTION_OUTER_HALF;
+      zStart = prevSectionRightEdge;
+      zEnd = nextSectionLeftEdge;
+    }
+
+    const length = zEnd - zStart;
+    const center = (zStart + zEnd) / 2;
+
+    const bearing = new THREE.Mesh(
+      new THREE.CylinderGeometry(BEARING_RADIUS, BEARING_RADIUS, length, 16),
+      matCrank
+    );
+    bearing.rotation.x = Math.PI / 2;
+    bearing.position.z = center;
+    engineGroup.add(bearing);
+  }
+
+  // Marker de rotación: disco + flecha al inicio del cigüeñal
+  markerGroup = new THREE.Group();
+  markerGroup.position.z = -1.6;
+  engineGroup.add(markerGroup);
+
+  // Disco base (estática)
+  const markerDisk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.55, 0.55, 0.15, 24),
+    new THREE.MeshStandardMaterial({ color: 0x303040, metalness: 0.4, roughness: 0.6 })
+  );
+  markerDisk.rotation.x = Math.PI / 2;
+  engineGroup.add(markerDisk);
+  markerDisk.position.z = -1.6;
+
+  // Flecha indicadora (rota con theta)
+  const arrowMat = new THREE.MeshStandardMaterial({
+    color: 0xffd54f, emissive: 0xff8800, emissiveIntensity: 0.7,
+    metalness: 0.3, roughness: 0.4
+  });
+  const arrowShaft = new THREE.Mesh(
+    new THREE.BoxGeometry(0.12, 0.7, 0.1),
+    arrowMat
+  );
+  arrowShaft.position.y = 0.35;
+  markerGroup.add(arrowShaft);
+
+  const arrowHead = new THREE.Mesh(
+    new THREE.ConeGeometry(0.18, 0.3, 8),
+    arrowMat
+  );
+  arrowHead.position.y = 0.8;
+  markerGroup.add(arrowHead);
+
+  // Marca "0°" (referencia fija) en el disco
+  const referenceMark = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.15, 0.05),
+    new THREE.MeshStandardMaterial({ color: 0xff5050, emissive: 0xff2020, emissiveIntensity: 0.8 })
+  );
+  referenceMark.position.set(0, 0.6, -0.15);  // arriba del disco, fuera, FIJA
+  engineGroup.add(referenceMark);
+
+  // For each cylinder, build crank pin, web (counterweight + arm), rod, piston, bore
+  engine.cylinders.forEach((cyl, idx) => {
+    const cylGroup = new THREE.Group();
+    engineGroup.add(cylGroup);
+    // En motores V con split-pin, los pares (L,R) que comparten zIndex
+    // están desfasados en Z para que las bielas y webs no choquen.
+    // STAGGER coincide con el valor usado para calcular bearings.
+    const zStagger = cyl.bankAngle > 0 ? STAGGER : 0;
+    cylGroup.position.z = cyl.zIndex * CYL_SPACING + zStagger;
+
+    // Crank webs (DOS placas que sandwich el crank pin) + crank pin
+    // SIN inner journal en el eje (eso sería un eje rígido duplicado).
+    // La conexión entre cilindros adyacentes la hacen los BEARINGS (apoyos).
+    const webGroup = new THREE.Group();
+    cylGroup.add(webGroup);
+
+    // Web ANTES del pin
+    const webBefore = new THREE.Mesh(
+      new THREE.BoxGeometry(0.45, CRANK_RADIUS * 1.1, WEB_THICKNESS),
+      matCrankWeb
+    );
+    webBefore.position.y = CRANK_RADIUS / 2;
+    webBefore.position.z = -PIN_LENGTH / 2 - WEB_THICKNESS / 2;
+    webGroup.add(webBefore);
+
+    // Web DESPUÉS del pin
+    const webAfter = new THREE.Mesh(
+      new THREE.BoxGeometry(0.45, CRANK_RADIUS * 1.1, WEB_THICKNESS),
+      matCrankWeb
+    );
+    webAfter.position.y = CRANK_RADIUS / 2;
+    webAfter.position.z = +PIN_LENGTH / 2 + WEB_THICKNESS / 2;
+    webGroup.add(webAfter);
+
+    // Crank pin (cilindro entre las dos webs, offset radial por R)
+    const crankPin = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.2, 0.2, PIN_LENGTH, 16),
+      matCrank
+    );
+    crankPin.rotation.x = Math.PI / 2;
+    crankPin.position.y = CRANK_RADIUS;
+    webGroup.add(crankPin);
+
+    // Connecting rod
+    const rod = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, ROD_LENGTH, 0.35),
+      matRod
+    );
+    cylGroup.add(rod);
+
+    // Big-end of rod (around crank pin) — visual ring
+    const bigEnd = new THREE.Mesh(
+      new THREE.TorusGeometry(0.28, 0.08, 8, 16),
+      matRod
+    );
+    bigEnd.rotation.y = Math.PI / 2;
+    cylGroup.add(bigEnd);
+
+    // Piston
+    const piston = new THREE.Mesh(
+      new THREE.CylinderGeometry(PISTON_RADIUS, PISTON_RADIUS, PISTON_HEIGHT, 20),
+      matPiston.clone()
+    );
+    cylGroup.add(piston);
+
+    // Cylinder bore (transparent tube)
+    // Posicionado para que el pistón siempre esté DENTRO del bore.
+    // El pistón viaja entre (L - R) y (L + R) a lo largo del eje del cilindro
+    // (donde L = ROD_LENGTH y R = CRANK_RADIUS).
+    // Centro del bore en L (=ROD_LENGTH); longitud cubre stroke + clearance.
+    const bankRad = cyl.bankAngle * DEG;
+    const boreLength = 2 * CRANK_RADIUS + PISTON_HEIGHT + 1.0;  // stroke + piston + clearance
+    const bore = new THREE.Mesh(
+      new THREE.CylinderGeometry(PISTON_RADIUS + 0.06, PISTON_RADIUS + 0.06, boreLength, 24, 1, true),
+      matCylinder
+    );
+    const boreDir = new THREE.Vector3(Math.sin(bankRad), Math.cos(bankRad), 0);
+    // Centro del bore = ROD_LENGTH (posición media del pistón)
+    const boreCenterDist = ROD_LENGTH;
+    bore.position.copy(boreDir.clone().multiplyScalar(boreCenterDist));
+    // IMPORTANTE: rotación NEGATIVA para que el eje Y del cilindro
+    // (que es su eje de simetría) apunte en dirección boreDir.
+    // Three.js: rotar (0,1,0) por +α en Z lo lleva a (-sin α, cos α).
+    // Como queremos que el eje quede en (sin β, cos β), rotamos por -β.
+    bore.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -bankRad);
+    cylGroup.add(bore);
+
+    // Tapa superior del cilindro (combustion chamber visual)
+    const topCap = new THREE.Mesh(
+      new THREE.CylinderGeometry(PISTON_RADIUS + 0.1, PISTON_RADIUS + 0.06, 0.3, 24),
+      new THREE.MeshStandardMaterial({ color: 0x606878, metalness: 0.5, roughness: 0.5 })
+    );
+    const topCapDist = ROD_LENGTH + CRANK_RADIUS + PISTON_HEIGHT / 2 + 0.6;
+    topCap.position.copy(boreDir.clone().multiplyScalar(topCapDist));
+    topCap.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -bankRad);
+    cylGroup.add(topCap);
+
+    cylinderMeshes.push({
+      cyl, idx,
+      group: cylGroup,
+      webGroup,
+      crankPin,
+      rod,
+      bigEnd,
+      piston,
+      bore,
+      boreDir,
+      bankRad
+    });
+  });
+
+  // Center engine on origin (incluyendo el zStagger)
+  // (numZ-1) * CYL_SPACING es la longitud sin stagger; añado 0.5 para incluir el desfase R
+  const totalLength = (numZ - 1) * CYL_SPACING + 0.5;
+  engineGroup.position.z = -totalLength / 2;
+}
+
+// ============================================================
+// ANIMATION
+// ============================================================
+let crankAngle = 0;
+let speed = 3;
+let paused = false;
+let markerGroup = null;  // Rotation indicator at end of crankshaft
+let showRods = true;
+let showPistons = true;
+
+function updatePhysics(dt) {
+  if (paused) return;
+  crankAngle = (crankAngle + speed * dt * 60) % 720;
+}
+
+function updateMeshes() {
+  if (!currentEngine) return;
+
+  const theta = crankAngle * DEG;
+
+  // Marker de rotación: rota con theta (mismo sentido que los crank pins)
+  if (markerGroup) {
+    markerGroup.rotation.z = -theta;
+  }
+
+  cylinderMeshes.forEach(cm => {
+    const cyl = cm.cyl;
+    const phi = cyl.crankAngle * DEG;
+
+    // Rotate the crank web (arm + pin + counterweight) around Z axis
+    cm.webGroup.rotation.z = -(theta + phi);
+    // Note: when rotation.z = 0, web's pin is "up" (positive Y).
+    // We want pin to be at angle (theta + phi) from positive Y
+    // (positive rotation by 'theta + phi' takes (0,1) → (sin, cos) ... actually (-sin, cos))
+    // Let me think... rotation.z = α rotates by α around Z (counterclockwise looking from +Z).
+    // (0,1,0) rotated by α around Z = (-sin α, cos α, 0).
+    // We want pin at (sin(θ+φ), cos(θ+φ), 0), which corresponds to rotation by -(θ+φ).
+    // So rotation.z = -(theta + phi). ✓
+
+    // Compute crank pin world position (in engine local coords)
+    const cpX = CRANK_RADIUS * Math.sin(theta + phi);
+    const cpY = CRANK_RADIUS * Math.cos(theta + phi);
+
+    // Project onto bore axis
+    const alongBore = cpX * cm.boreDir.x + cpY * cm.boreDir.y;
+    const perpX = cpX - alongBore * cm.boreDir.x;
+    const perpY = cpY - alongBore * cm.boreDir.y;
+    const perpDist = Math.sqrt(perpX * perpX + perpY * perpY);
+
+    const pistonOffset = alongBore + Math.sqrt(Math.max(0.001, ROD_LENGTH * ROD_LENGTH - perpDist * perpDist));
+    const pistonPos = cm.boreDir.clone().multiplyScalar(pistonOffset);
+
+    // Piston (orientado a lo largo del bore, rotación negativa para que coincida con boreDir)
+    cm.piston.position.copy(pistonPos);
+    cm.piston.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -cm.bankRad);
+
+    // Connecting rod (from crank pin to piston pin)
+    const rodStart = new THREE.Vector3(cpX, cpY, 0);
+    const rodEnd = pistonPos;
+    const rodMid = new THREE.Vector3().addVectors(rodStart, rodEnd).multiplyScalar(0.5);
+    const rodVec = new THREE.Vector3().subVectors(rodEnd, rodStart);
+    const rodLen = rodVec.length();
+
+    cm.rod.position.copy(rodMid);
+    cm.rod.scale.set(1, rodLen / ROD_LENGTH, 1);
+
+    const up = new THREE.Vector3(0, 1, 0);
+    const dir = rodVec.clone().normalize();
+    const q = new THREE.Quaternion().setFromUnitVectors(up, dir);
+    cm.rod.quaternion.copy(q);
+
+    // Big-end of rod (visual ring around the crank pin)
+    cm.bigEnd.position.copy(rodStart);
+
+    // Visibility
+    cm.rod.visible = showRods;
+    cm.bigEnd.visible = showRods;
+    cm.piston.visible = showPistons;
+  });
+
+  // Determine which cylinder is firing
+  // El flash dura SOLO desde fireAt hasta fireAt+tolerance (hacia adelante).
+  // Esto evita que el flash aparezca antes de tiempo (ej: Cil 1 firing al
+  // final del ciclo en vez de al inicio).
+  const firingTolerance = 25;
+  let firingCylinderIdx = -1;
+  currentEngine.firingOrder.forEach((cylIdx, k) => {
+    const fireAt = currentEngine.firingPattern[k];
+    const diff = ((crankAngle - fireAt) % 720 + 720) % 720;
+    // diff es número de grados DESDE el firing (0 a 720)
+    if (diff < firingTolerance) firingCylinderIdx = cylIdx;
+  });
+
+  // Update piston colors
+  cylinderMeshes.forEach((cm, i) => {
+    if (i === firingCylinderIdx) {
+      cm.piston.material = matFiring;
+    } else {
+      cm.piston.material = matPiston;
+    }
+  });
+
+  // Info overlay
+  document.getElementById('info-engine').textContent = currentEngine.name;
+  document.getElementById('info-angle').textContent = `${crankAngle.toFixed(0)}°`;
+  document.getElementById('info-rpm').textContent = `${speed}/100`;
+  if (firingCylinderIdx >= 0) {
+    document.getElementById('info-firing').textContent = currentEngine.cylinders[firingCylinderIdx].name + ' 💥';
+  } else {
+    document.getElementById('info-firing').textContent = '—';
+  }
+
+  document.getElementById('cycle-bar').style.width = `${(crankAngle / 720) * 100}%`;
+
+  // Firing table highlight: comparar por dataset.cylIdx, no por posición de fila
+  // (la tabla está ordenada cronológicamente, no por índice de cilindro)
+  const cells = document.querySelectorAll('#firing-table .cyl-cell');
+  cells.forEach((c) => {
+    const cylIdx = parseInt(c.dataset.cylIdx);
+    if (cylIdx === firingCylinderIdx) {
+      c.classList.add('cyl-firing');
+    } else {
+      c.classList.remove('cyl-firing');
+    }
+  });
+}
+
+let lastTime = performance.now();
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const dt = Math.min(0.1, (now - lastTime) / 1000);
+  lastTime = now;
+
+  updatePhysics(dt);
+  updateMeshes();
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// ============================================================
+// UI
+// ============================================================
+function selectEngine(key) {
+  const engine = ENGINES[key];
+  if (!engine) return;
+
+  document.querySelectorAll('.engine-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.engine === key));
+
+  buildEngine(engine);
+
+  document.getElementById('engine-description').textContent = engine.description;
+
+  const tbl = document.getElementById('firing-table');
+  tbl.innerHTML = '';
+  const headerRow = tbl.insertRow();
+  headerRow.innerHTML = '<td>Orden</td><td>Cilindro</td><td>Ángulo</td>';
+
+  // Sort firingOrder by firingPattern (ascending) — show in chronological order
+  // (For consistency, the table should show firings in order)
+  const indexed = engine.firingOrder.map((cylIdx, k) => ({
+    k, cylIdx, fireAt: engine.firingPattern[k]
+  }));
+  indexed.sort((a, b) => a.fireAt - b.fireAt);
+
+  // Now we need a mapping: original firingOrder index → table row position
+  // To highlight correctly, the firingCylinderIdx (cylinder index) should match
+  // a row's data-cyl-idx attribute.
+
+  indexed.forEach((entry, rowIdx) => {
+    const r = tbl.insertRow();
+    r.innerHTML = `
+      <td>${rowIdx + 1}</td>
+      <td class="cyl-cell" data-cyl-idx="${entry.cylIdx}">${engine.cylinders[entry.cylIdx].name}</td>
+      <td>${entry.fireAt}°</td>
+    `;
+  });
+
+  crankAngle = 0;
+}
+
+document.querySelectorAll('.engine-btn').forEach(btn => {
+  btn.addEventListener('click', () => selectEngine(btn.dataset.engine));
+});
+
+document.getElementById('speed').addEventListener('input', e => {
+  speed = parseInt(e.target.value);
+});
+
+document.getElementById('show-rods').addEventListener('change', e => {
+  showRods = e.target.checked;
+});
+
+document.getElementById('show-pistons').addEventListener('change', e => {
+  showPistons = e.target.checked;
+});
+
+document.getElementById('pause-btn').addEventListener('click', () => {
+  paused = !paused;
+  document.getElementById('pause-btn').textContent = paused ? '▶ Reanudar' : '⏸ Pausar';
+});
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  crankAngle = 0;
+});
+
+selectEngine('inline4');
+animate();
+</script>
+</body>
+</html>
