@@ -13,6 +13,7 @@ const sections = [
   { id: 's10-big-bang', label: '10. Big Bang vs Screamer' },
   { id: 's11-configuraciones', label: '11. Configuraciones' },
   { id: 's12-giroscopico', label: '12. Efecto giroscópico' },
+  { id: 's13-cambio', label: '13. Cambio manual' },
 ];
 
 interface SidebarProps {

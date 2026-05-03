@@ -13,6 +13,7 @@ const S09Patrones = lazy(() => import('./components/sections/S09Patrones'));
 const S10BigBang = lazy(() => import('./components/sections/S10BigBang'));
 const S11Configuraciones = lazy(() => import('./components/sections/S11Configuraciones'));
 const S12Giroscopico = lazy(() => import('./components/sections/S12Giroscopico'));
+const S13Cambio = lazy(() => import('./components/sections/S13Cambio'));
 
 function LoadingFallback() {
   return (
@@ -127,6 +128,7 @@ export default function App() {
             <S10BigBang />
             <S11Configuraciones />
             <S12Giroscopico />
+            <S13Cambio />
           </Suspense>
         )}
       </main>
